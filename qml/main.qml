@@ -1,12 +1,14 @@
 import QtQuick 2.5
+import QtQuick.Window 2.0
 import QtQuick.Controls 1.4
 import QtQuick.Dialogs 1.0
 
 
-Rectangle {
+Window {
     id: root
     width: 600
     height: 500
+    visible: true
 
     FileDialog {
         id: fileDialog
@@ -57,6 +59,9 @@ Rectangle {
             Button {
                 text: "Download"
                 width: 1 * parent.width / 5
+                onClicked: {
+                    downloader.start_download(download_path.text);
+                }
             }
         }
     }
