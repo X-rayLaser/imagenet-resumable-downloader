@@ -10,6 +10,10 @@ Window {
     height: 500
     visible: true
 
+    property int images_loaded: 0
+    property int images_total: 10
+    property bool download_completed: true
+
     FileDialog {
         id: fileDialog
         title: "Please choose a file"
@@ -53,15 +57,27 @@ Window {
             ProgressBar {
                 id: bar
                 width: 3 * parent.width / 4
-                value: 0.65
+                value: images_loaded / images_total
             }
 
             Button {
+                id: download_button
                 text: "Download"
                 width: 1 * parent.width / 5
                 onClicked: {
+                    download_button.enabled = false;
                     downloader.start_download(download_path.text);
                 }
+            }
+        }
+    }
+
+    Connections {
+        target: downloader
+        onImageLoaded: {
+            root.images_loaded += 1;
+            if (root.images_loaded === root.images_total) {
+                download_button.enabled = true;
             }
         }
     }

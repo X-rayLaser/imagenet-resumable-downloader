@@ -2,16 +2,19 @@ import requests
 import shutil
 import os
 from urllib.parse import urlparse
+from PIL import Image
 
 
 class ImageNet:
     synsets_url = 'http://www.image-net.org/api/text/imagenet.synset.obtain_synset_list'
 
-    def __init__(self, number_of_examples, destination):
+    def __init__(self, number_of_examples, destination, on_loaded):
         self.number_of_examples = number_of_examples
         self.downloaded = 0
         self.destination = destination
         self.training_set = []
+
+        self._on_loaded = on_loaded
 
     def download(self):
         synsets_url = self.synsets_url
@@ -45,7 +48,13 @@ class ImageNet:
                 with open(file_path, 'wb') as f:
                     r.raw.decode_content = True
                     shutil.copyfileobj(r.raw, f)
-                return 1
+
+                if self._valid_image(file_path):
+                    self._on_loaded()
+                    return 1
+                else:
+                    os.remove(file_path)
+                    return 0
             else:
                 print('Bad code {}. Url {}'.format(code, image_url))
                 return 0
@@ -53,6 +62,13 @@ class ImageNet:
             import traceback
             traceback.print_exc()
             return 0
+
+    def _valid_image(self, path):
+        try:
+            Image.open(path)
+            return True
+        except IOError:
+            return False
 
     def _file_path(self, image_url):
         file_name = os.path.basename(urlparse(image_url).path)
