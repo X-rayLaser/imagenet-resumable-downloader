@@ -6,3 +6,4 @@ venv/
 *.log
 temp/
 dist/
+word_net_ids.txt

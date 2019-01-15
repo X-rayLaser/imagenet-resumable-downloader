@@ -1,6 +1,6 @@
 import QtQuick 2.5
 import QtQuick.Window 2.0
-import QtQuick.Controls 1.4
+import QtQuick.Controls 2.2
 import QtQuick.Dialogs 1.0
 
 
@@ -54,6 +54,22 @@ Window {
         Row {
             spacing: 15
             width: parent.width
+
+            Text {
+                text: "# of images to download"
+            }
+            SpinBox {
+                id: amount_spnibox
+                from: 1
+                to: 100000
+                value: 5
+                editable: true
+            }
+        }
+
+        Row {
+            spacing: 15
+            width: parent.width
             ProgressBar {
                 id: bar
                 width: 3 * parent.width / 4
@@ -66,9 +82,40 @@ Window {
                 width: 1 * parent.width / 5
                 onClicked: {
                     download_button.enabled = false;
-                    downloader.start_download(download_path.text);
+                    root.images_loaded = 0;
+                    complete_label.visible = false;
+                    time_left_row.visible = true;
+                    root.images_total = amount_spnibox.value;
+                    downloader.start_download(download_path.text, amount_spnibox.value);
                 }
             }
+        }
+
+        Row {
+            id: time_left_row
+            spacing: 15
+            visible: false
+            anchors.horizontalCenter: parent.horizontalCenter
+            Text {
+                text: "Time remaining:"
+                font.pointSize: 20.5
+                font.bold: true
+            }
+
+            Text {
+                id: time_left
+                text: "0 seconds"
+                font.pointSize: 20.5
+                font.bold: true
+            }
+        }
+
+        Text {
+            id: complete_label
+            text: "Download is complete"
+            font.pointSize: 20.5
+            font.bold: true
+            visible: false
         }
     }
 
@@ -76,8 +123,11 @@ Window {
         target: downloader
         onImageLoaded: {
             root.images_loaded += 1;
+            time_left.text = downloader.time_remaining;
             if (root.images_loaded === root.images_total) {
                 download_button.enabled = true;
+                complete_label.visible = true;
+                time_left_row.visible = false;
             }
         }
     }

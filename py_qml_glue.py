@@ -2,6 +2,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QThread
 from downloader import ImageNet
 import os
+import time
 from urllib.parse import urlparse
 
 
@@ -23,6 +24,35 @@ class DownloaderThread(QThread):
         imagenet.download()
 
 
+class RunningAverage:
+    def __init__(self, points=20):
+        self._points = points
+        self._update_times = []
+        self._initial_time = time.time()
+
+    def reset(self):
+        self._update_times = []
+        self._initial_time = time.time()
+
+    def update(self):
+        t = time.time()
+
+        if len(self._update_times) >= self._points:
+            self._initial_time = self._update_times[-1]
+            self._update_times[:] = []
+        self._update_times.append(t)
+
+    @property
+    def units_per_second(self):
+        if not self._update_times:
+            return 0
+
+        seconds = self._update_times[-1] - self._initial_time
+        units = len(self._update_times)
+
+        return float(units) / seconds
+
+
 class Worker(QtCore.QObject):
     imageLoaded = QtCore.pyqtSignal()
 
@@ -31,25 +61,33 @@ class Worker(QtCore.QObject):
         self._complete = True
         self._images = 0
 
-    @QtCore.pyqtSlot(str)
-    def start_download(self, destination):
+        self._running_avg = RunningAverage()
+        self._number_of_images = 0
+
+    @QtCore.pyqtSlot(str, int)
+    def start_download(self, destination, number_of_images):
+        nimages = int(number_of_images)
+        self._number_of_images = nimages
+
         self._complete = False
         self._images = 0
 
         path = self._parse_url(destination)
-        path = '/home/eugene/mytemp/imagenet'
 
-        self.thread = DownloaderThread(destination=path, number_of_examples=10)
+        self.thread = DownloaderThread(destination=path, number_of_examples=nimages)
 
         def handle_loaded():
+            self._running_avg.update()
             self._images += 1
 
-            if self._images >= 10:
+            if self._images >= nimages:
                 self._complete = True
 
             self.imageLoaded.emit()
 
         self.thread.imageLoaded.connect(handle_loaded)
+
+        self._running_avg.reset()
         self.thread.start()
 
     @QtCore.pyqtProperty(int)
@@ -59,6 +97,25 @@ class Worker(QtCore.QObject):
     @QtCore.pyqtProperty(bool)
     def complete(self):
         return self._complete
+
+    @QtCore.pyqtProperty(str)
+    def time_remaining(self):
+        images_left = self._number_of_images - self._images
+        time_left = round(
+            images_left / float(self._running_avg.units_per_second)
+        )
+        return self._format_time(time_left)
+
+    def _format_time(self, seconds):
+        if seconds < 60:
+            return '{} seconds'.format(seconds)
+        elif seconds < 3600:
+            return '{} minutes'.format(round(seconds / 60.0))
+        elif seconds < 3600 * 24:
+            return '{} hours'.format(round(seconds / 3600.0))
+        else:
+            days = float(seconds) / (3600 * 24)
+            return '{} days'.format(round(days))
 
     def _parse_url(self, file_url):
         p = urlparse(file_url)
