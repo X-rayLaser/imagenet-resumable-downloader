@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 
 class DownloaderThread(QThread):
-    imageLoaded = QtCore.pyqtSignal()
+    imageLoaded = QtCore.pyqtSignal(int)
 
     def __init__(self, destination, number_of_examples):
         super().__init__()
@@ -15,8 +15,8 @@ class DownloaderThread(QThread):
         self.number_of_examples = number_of_examples
 
     def run(self):
-        def on_image_downloaded():
-            self.imageLoaded.emit()
+        def on_image_downloaded(amount):
+            self.imageLoaded.emit(amount)
 
         imagenet = ImageNet(number_of_examples=self.number_of_examples,
                             destination=self.destination,
@@ -25,22 +25,27 @@ class DownloaderThread(QThread):
 
 
 class RunningAverage:
-    def __init__(self, points=20):
+    def __init__(self, points=5):
         self._points = points
         self._update_times = []
+        self._update_units = []
         self._initial_time = time.time()
 
     def reset(self):
         self._update_times = []
+        self._update_units = []
         self._initial_time = time.time()
 
-    def update(self):
+    def update(self, units=1):
         t = time.time()
 
         if len(self._update_times) >= self._points:
             self._initial_time = self._update_times[-1]
             self._update_times[:] = []
+            self._update_units[:] = []
+
         self._update_times.append(t)
+        self._update_units.append(units)
 
     @property
     def units_per_second(self):
@@ -48,7 +53,7 @@ class RunningAverage:
             return 0
 
         seconds = self._update_times[-1] - self._initial_time
-        units = len(self._update_times)
+        units = sum(self._update_units)
 
         return float(units) / seconds
 
@@ -76,14 +81,15 @@ class Worker(QtCore.QObject):
 
         self.thread = DownloaderThread(destination=path, number_of_examples=nimages)
 
-        def handle_loaded():
-            self._running_avg.update()
-            self._images += 1
+        def handle_loaded(amount):
+            self._images += amount
 
             if self._images >= nimages:
                 self._complete = True
 
-            self.imageLoaded.emit()
+            self._running_avg.update(amount)
+            for i in range(amount):
+                self.imageLoaded.emit()
 
         self.thread.imageLoaded.connect(handle_loaded)
 

@@ -6,18 +6,31 @@ from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 
 
-class WordNetIdList:
-    synsets_url = 'http://www.image-net.org/api/text/imagenet.synset.obtain_synset_list'
-    wn_ids_path = 'word_net_ids.txt'
-    timeout = 120
+# todo: fix \n in the synset urls
+# todo: transform file names (remove bad characters)
 
-    def __init__(self):
-        self._download_list()
+
+class LinesIterator:
+    def file_path(self):
+        raise NotImplementedError
 
     def __iter__(self):
-        with open(self.wn_ids_path) as f:
+        file_path = self.file_path()
+        with open(file_path) as f:
             for line in f:
-                yield line
+                yield line.rstrip()
+
+
+class WordNetIdList(LinesIterator):
+    synsets_url = 'http://www.image-net.org/api/text/imagenet.synset.obtain_synset_list'
+    timeout = 120
+
+    def __init__(self, wn_ids_path):
+        self.wn_ids_path = wn_ids_path
+        self._download_list()
+
+    def file_path(self):
+        return self.wn_ids_path
 
     def _download_list(self):
         if not os.path.isfile(self.wn_ids_path):
@@ -28,7 +41,7 @@ class WordNetIdList:
                 shutil.copyfileobj(r.raw, f)
 
 
-class Synset:
+class Synset(LinesIterator):
     timeout = 120
 
     def __init__(self, wn_id):
@@ -41,10 +54,8 @@ class Synset:
 
         self._lines_iterator = self._lines.__iter__()
 
-    def __iter__(self):
-        with open(self.synset_urls_path) as f:
-            for line in f:
-                yield line
+    def file_path(self):
+        return self.synset_urls_path
 
     def next_batch(self, size):
         lines = []
@@ -112,18 +123,16 @@ class DummyDownloader:
     def download(self, url):
         import time
         import random
-        time.sleep(2 * random.random())
+        #time.sleep(2 * random.random())
         file_path = url_to_file_path(self.destination, url)
         with open(file_path, 'w') as f:
-            f.write('x' * 10000)
+            f.write('x' * 100)
         return True
 
 
 class ImageValidator:
     @staticmethod
     def valid_image(path):
-        #import random
-        #return random.random() > 0.5
         try:
             Image.open(path)
             return True
@@ -131,7 +140,43 @@ class ImageValidator:
             return False
 
 
+class DummyValidator:
+    @staticmethod
+    def valid_image(path):
+        import random
+        return random.random() > 0.5
+
+
+class ThreadingDownloader:
+    def __init__(self, destination):
+        self.destination = destination
+
+    def download(self, urls):
+        pool = ThreadPoolExecutor(max_workers=100)
+        statuses = list(map(self._download, urls))
+        successes = sum(statuses)
+        return successes
+
+    def _download(self, image_url):
+        file_path = url_to_file_path(self.destination, image_url)
+        #downloader = FileDownloader(destination=self.destination)
+        downloader = DummyDownloader(destination=self.destination)
+        success = downloader.download(image_url)
+
+        Validator = DummyValidator
+        if success:
+            if Validator.valid_image(file_path):
+                return 1
+            else:
+                os.remove(file_path)
+                return 0
+        else:
+            return 0
+
+
 class ImageNet:
+    wn_ids_path = 'word_net_ids.txt'
+
     def __init__(self, number_of_examples, destination, on_loaded):
         self.number_of_examples = number_of_examples
         self.downloaded = 0
@@ -144,9 +189,15 @@ class ImageNet:
     def download(self):
         from time import time
         start = time()
-        wordnet_list = WordNetIdList()
+        wordnet_list = WordNetIdList(self.wn_ids_path)
 
         for wn_id in wordnet_list:
+            folder_path = os.path.join(self.destination, str(wn_id))
+            if not os.path.exists(folder_path):
+                os.mkdir(folder_path)
+
+            threading_downloader = ThreadingDownloader(destination=folder_path)
+
             synset = Synset(wn_id=wn_id)
 
             while True:
@@ -154,39 +205,11 @@ class ImageNet:
                     size=self.number_of_examples - self.downloaded
                 )
 
-                print(urls)
-
-                pool = ThreadPoolExecutor(max_workers=100)
-                statuses = list(pool.map(self._download_image, urls))
-                self.downloaded += sum(statuses)
-                print(statuses)
+                successes = threading_downloader.download(urls)
+                self.downloaded += successes
+                self._on_loaded(successes)
 
                 if self.downloaded >= self.number_of_examples:
                     end = time()
                     print('Took %.3f seconds' % (end - start))
                     return
-
-    def _prepare_urls_batch(self, synset, size):
-        urls = []
-        i = 0
-        for image_url in synset:
-            if i >= size:
-                break
-            i += 1
-            urls.append(image_url)
-        return urls
-
-    def _download_image(self, image_url):
-        file_path = url_to_file_path(self.destination, image_url)
-        downloader = FileDownloader(destination=self.destination)
-        #downloader = DummyDownloader(destination=self.destination)
-        success = downloader.download(image_url)
-        if success:
-            if ImageValidator.valid_image(file_path):
-                self._on_loaded()
-                return 1
-            else:
-                os.remove(file_path)
-                return 0
-        else:
-            return 0
