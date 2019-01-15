@@ -6,8 +6,8 @@ from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 
 
-# todo: fix \n in the synset urls
 # todo: transform file names (remove bad characters)
+# todo: Urls iterator class (combine WordNetIdList and Synset)
 
 
 class LinesIterator:
@@ -67,6 +67,9 @@ class Synset(LinesIterator):
             pass
         return lines
 
+    def get_url_batches(self, size):
+        return []
+
     def _download_list(self, wn_id):
         url = 'http://www.image-net.org/api/text/imagenet.synset.geturls?' \
               'wnid={}'.format(wn_id)
@@ -74,16 +77,14 @@ class Synset(LinesIterator):
         if not os.path.isfile(self.synset_urls_path):
             print('No sysnset urls file is found. Downloading the list from {}'.format(url))
 
-            r = requests.get(url, timeout=self.timeout)
+            r = requests.get(url, stream=True, timeout=self.timeout)
             code = r.status_code
             if code != requests.codes.ok:
                 raise Exception(code)
 
             with open(self.synset_urls_path, 'wb') as f:
-                urls = r.text
-                print(urls)
-                f.write(urls)
-
+                r.raw.decode_content = True
+                shutil.copyfileobj(r.raw, f)
 
 def url_to_file_path(destination_dir, url):
     file_name = os.path.basename(urlparse(url).path)
@@ -152,8 +153,8 @@ class ThreadingDownloader:
         self.destination = destination
 
     def download(self, urls):
-        pool = ThreadPoolExecutor(max_workers=100)
-        statuses = list(map(self._download, urls))
+        pool = ThreadPoolExecutor(max_workers=1000)
+        statuses = list(pool.map(self._download, urls))
         successes = sum(statuses)
         return successes
 
@@ -201,15 +202,18 @@ class ImageNet:
             synset = Synset(wn_id=wn_id)
 
             while True:
-                urls = synset.next_batch(
-                    size=self.number_of_examples - self.downloaded
-                )
+                try:
+                    urls = synset.next_batch(
+                        size=self.number_of_examples - self.downloaded
+                    )
 
-                successes = threading_downloader.download(urls)
-                self.downloaded += successes
-                self._on_loaded(successes)
+                    successes = threading_downloader.download(urls)
+                    self.downloaded += successes
+                    self._on_loaded(successes)
 
-                if self.downloaded >= self.number_of_examples:
-                    end = time()
-                    print('Took %.3f seconds' % (end - start))
-                    return
+                    if self.downloaded >= self.number_of_examples:
+                        end = time()
+                        print('Took %.3f seconds' % (end - start))
+                        return
+                except StopIteration:
+                    break
