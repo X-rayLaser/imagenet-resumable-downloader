@@ -34,6 +34,44 @@ class SynsetTests(unittest.TestCase):
         self.assertEqual(urls[1], 'http://another-domain.com/1234%329jflija')
         self.assertEqual(urls[2], 'http://another-domain.com/x/y/z')
 
+    def test_next_batch_returns_no_trailing_newline_chars(self):
+        synset = Synset(wn_id='wn_id_fixture')
+        b = synset.next_batch(1)
+        self.assertNotIn('\n', b[0])
+
+        synset = Synset(wn_id='wn_id_fixture')
+        b = synset.next_batch(2)
+        self.assertNotIn('\n', b[0])
+        self.assertNotIn('\n', b[1])
+
+    def test_next_batch_output_is_correct(self):
+        synset = Synset(wn_id='wn_id_fixture')
+        b = synset.next_batch(2)
+        self.assertEqual(len(b), 2)
+        self.assertEqual('http://some_domain.com/something', b[0])
+        self.assertEqual('http://another-domain.com/1234%329jflija', b[1])
+
+        b = synset.next_batch(1)
+        self.assertEqual(len(b), 1)
+        self.assertEqual('http://another-domain.com/x/y/z', b[0])
+
+    def test_next_batch_iteration_stops_eventually(self):
+        synset = Synset(wn_id='wn_id_fixture')
+        b = synset.next_batch(3)
+
+        b = synset.next_batch(1)
+        self.assertEqual(len(b), 0)
+        b = synset.next_batch(10)
+        self.assertEqual(len(b), 0)
+
+    def test_next_batch_of_size_exceeding_number_of_elements(self):
+        synset = Synset(wn_id='wn_id_fixture')
+        b = synset.next_batch(10)
+        self.assertEqual(len(b), 3)
+        self.assertEqual('http://some_domain.com/something', b[0])
+        self.assertEqual('http://another-domain.com/1234%329jflija', b[1])
+        self.assertEqual('http://another-domain.com/x/y/z', b[2])
+
     def test_batch_iterator(self):
         synset = Synset(wn_id='wn_id_fixture')
 

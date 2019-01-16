@@ -62,7 +62,8 @@ class Synset(LinesIterator):
         lines = []
         try:
             for i in range(size):
-                lines.append(next(self._lines_iterator))
+                line = next(self._lines_iterator)
+                lines.append(line.rstrip())
         except StopIteration:
             print('StopIteration')
             pass
@@ -99,7 +100,7 @@ class FileDownloader:
         self._timeout = timeout
 
     def download(self, url):
-        file_path = url_to_file_path(self.destination, url)
+        file_path = self.destination
         try:
             r = requests.get(url, stream=True, timeout=self._timeout)
             code = r.status_code
@@ -127,7 +128,7 @@ class DummyDownloader:
         import time
         import random
         #time.sleep(2 * random.random())
-        file_path = url_to_file_path(self.destination, url)
+        file_path = self.destination
         with open(file_path, 'w') as f:
             f.write('x' * 100)
         return True
@@ -221,10 +222,11 @@ class ThreadingDownloader:
         successes = sum(statuses)
         return successes
 
-    def _download(self, image_url, file_name):
+    def _download(self, args):
+        image_url, file_name = args
         file_path = os.path.join(self.destination, file_name)
-        #downloader = FileDownloader(destination=self.destination)
-        downloader = DummyDownloader(destination=self.destination)
+        #downloader = FileDownloader(destination=file_path)
+        downloader = DummyDownloader(destination=file_path)
         success = downloader.download(image_url)
 
         Validator = DummyValidator
@@ -240,6 +242,7 @@ class ThreadingDownloader:
 
 class ImageNet:
     wn_ids_path = 'word_net_ids.txt'
+    registry_path = os.path.join('imagenet_data', 'file-name-registry.json')
 
     def __init__(self, number_of_examples, destination, on_loaded):
         self.number_of_examples = number_of_examples
@@ -255,12 +258,17 @@ class ImageNet:
         start = time()
         wordnet_list = WordNetIdList(self.wn_ids_path)
 
+        file_name_registry = ItemsRegistry(self.registry_path)
+        url2file_name = Url2FileName(file_name_registry)
+
         for wn_id in wordnet_list:
             folder_path = os.path.join(self.destination, str(wn_id))
             if not os.path.exists(folder_path):
                 os.mkdir(folder_path)
 
-            threading_downloader = ThreadingDownloader(destination=folder_path)
+            threading_downloader = ThreadingDownloader(
+                destination=folder_path, url2file_name=url2file_name
+            )
 
             synset = Synset(wn_id=wn_id)
 
