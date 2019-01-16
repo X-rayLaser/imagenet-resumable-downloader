@@ -6,8 +6,6 @@ from urllib.parse import urlparse
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 
-
-# todo: transform file names (remove bad characters)
 # todo: Urls iterator class (combine WordNetIdList and Synset)
 
 
@@ -87,6 +85,35 @@ class Synset(LinesIterator):
             with open(self.synset_urls_path, 'wb') as f:
                 r.raw.decode_content = True
                 shutil.copyfileobj(r.raw, f)
+
+
+class ImageNetUrls:
+    def __init__(self, word_net_ids, wnid2synset, batch_size=1000):
+        if batch_size <= 0:
+            raise InvalidBatchError()
+
+        self._word_net_ids = word_net_ids
+        self._wnid2synset = wnid2synset
+        self._batch_size = batch_size
+
+    def __iter__(self):
+        for wn_id in self._word_net_ids:
+            synset = self._wnid2synset(wn_id)
+
+            batch = []
+            for url in synset:
+                if not self._valid_url(url):
+                    continue
+
+                batch.append(url)
+                if len(batch) >= self._batch_size:
+                    yield (wn_id, batch)
+                    batch = []
+            if batch:
+                yield (wn_id, batch)
+
+    def _valid_url(self, url):
+        return url.rstrip() != '' and url.lstrip() != ''
 
 
 def url_to_file_path(destination_dir, url):
@@ -291,4 +318,8 @@ class ImageNet:
 
 
 class MalformedUrlError(Exception):
+    pass
+
+
+class InvalidBatchError(Exception):
     pass

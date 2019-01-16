@@ -242,5 +242,85 @@ class Url2FileNameTests(WithRegistryMixin):
         self.assertEqual(third, '3.gif')
 
 
+class ImageNetUrlsTests(unittest.TestCase):
+    word_net_ids = ['n392093', 'n38203']
+
+    synsets = {
+        'n392093': ['url1', 'url2', 'url3', ''],
+        'n38203': ['url4', ' \n ', 'url5']
+    }
+
+    def test_getting_all_urls(self):
+        def wnid2synset(wn_id):
+            return self.synsets[wn_id]
+
+        it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                     batch_size=2)
+        results = []
+        for pair in it:
+            results.append(pair)
+
+        expected_pairs = [
+            ('n392093', ['url1', 'url2']),
+            ('n392093', ['url3']),
+            ('n38203', ['url4', 'url5'])
+        ]
+        self.assertEqual(results, expected_pairs)
+
+    def test_with_1_pair_batch(self):
+        def wnid2synset(wn_id):
+            return self.synsets[wn_id]
+
+        it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                     batch_size=1)
+        results = []
+        for pair in it:
+            results.append(pair)
+
+        expected_pairs = [
+            ('n392093', ['url1']),
+            ('n392093', ['url2']),
+            ('n392093', ['url3']),
+            ('n38203', ['url4']),
+            ('n38203', ['url5'])
+        ]
+        self.assertEqual(results, expected_pairs)
+
+    def test_with_default_batch_size(self):
+        def wnid2synset(wn_id):
+            return self.synsets[wn_id]
+
+        it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset)
+        results = []
+        for pair in it:
+            results.append(pair)
+
+        expected_pairs = [
+            ('n392093', ['url1', 'url2', 'url3']),
+            ('n38203', ['url4', 'url5'])
+        ]
+        self.assertEqual(results, expected_pairs)
+
+    def test_with_zero_batch_size(self):
+        def wnid2synset(wn_id):
+            return self.synsets[wn_id]
+
+        def f():
+            it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                         batch_size=0)
+
+        self.assertRaises(downloader.InvalidBatchError, f)
+
+    def test_with_negative_batch_size(self):
+        def wnid2synset(wn_id):
+            return self.synsets[wn_id]
+
+        def f():
+            it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                         batch_size=-1)
+
+        self.assertRaises(downloader.InvalidBatchError, f)
+
+
 if __name__ == '__main__':
     unittest.main()
