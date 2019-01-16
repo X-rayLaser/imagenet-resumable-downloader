@@ -1,6 +1,7 @@
 import requests
 import shutil
 import os
+import json
 from urllib.parse import urlparse
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
@@ -86,6 +87,7 @@ class Synset(LinesIterator):
                 r.raw.decode_content = True
                 shutil.copyfileobj(r.raw, f)
 
+
 def url_to_file_path(destination_dir, url):
     file_name = os.path.basename(urlparse(url).path)
     return os.path.join(destination_dir, file_name)
@@ -148,18 +150,61 @@ class DummyValidator:
         return random.random() > 0.5
 
 
+class ItemsRegistry:
+    def __init__(self, registry_path):
+        self._registry_path = registry_path
+        self._registry = set()
+
+        if os.path.isfile(registry_path):
+            with open(registry_path, 'r') as f:
+                json_str = f.read()
+
+            self._registry = set(json.loads(json_str))
+
+    def add(self, name):
+        self._registry.add(name)
+        self._save()
+
+    def remove(self, name):
+        if name in self._registry:
+            self._registry.remove(name)
+            self._save()
+
+    def __contains__(self, name):
+        return name in self._registry
+
+    def _save(self):
+        to_be_saved = json.dumps(list(self._registry))
+
+        with open(self._registry_path, 'w') as f:
+            f.writelines(to_be_saved)
+
+
+# todo:
+class Url2FileName:
+    def __init__(self, file_name_registry):
+        pass
+
+    def convert(self, url):
+        pass
+
+
 class ThreadingDownloader:
-    def __init__(self, destination):
+    max_workers = 1000
+
+    def __init__(self, destination, url2file_name):
         self.destination = destination
+        self._url2file_name = url2file_name
 
     def download(self, urls):
-        pool = ThreadPoolExecutor(max_workers=1000)
-        statuses = list(pool.map(self._download, urls))
+        args = [(url, self._url2file_name.convert(url)) for url in urls]
+        pool = ThreadPoolExecutor(max_workers=self.max_workers)
+        statuses = list(pool.map(self._download, args))
         successes = sum(statuses)
         return successes
 
-    def _download(self, image_url):
-        file_path = url_to_file_path(self.destination, image_url)
+    def _download(self, image_url, file_name):
+        file_path = os.path.join(self.destination, file_name)
         #downloader = FileDownloader(destination=self.destination)
         downloader = DummyDownloader(destination=self.destination)
         success = downloader.download(image_url)

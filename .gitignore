@@ -1,9 +1,11 @@
 \.idea/
 \.vagrant/
 venv/
+temp/
+dist/
+imagenet_data/
 *.qmlc
 *.pyc
 *.log
-temp/
-dist/
 word_net_ids.txt
+synset_urls_n02119789.txt
