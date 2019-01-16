@@ -5,8 +5,13 @@ import json
 from urllib.parse import urlparse
 from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
+from time import time
 
-# todo: Urls iterator class (combine WordNetIdList and Synset)
+app_data_folder = 'imagenet_data'
+
+
+# todo: instantiate threading pool once
+# todo: Lazy creation of directories
 
 
 class LinesIterator:
@@ -44,7 +49,8 @@ class Synset(LinesIterator):
     timeout = 120
 
     def __init__(self, wn_id):
-        self.synset_urls_path = 'synset_urls_{}.txt'.format(wn_id)
+        file_name = 'synset_urls_{}.txt'.format(wn_id)
+        self.synset_urls_path = os.path.join(app_data_folder, file_name)
         self._download_list(wn_id)
 
         self._lines = []
@@ -268,8 +274,12 @@ class ThreadingDownloader:
 
 
 class ImageNet:
-    wn_ids_path = 'word_net_ids.txt'
-    registry_path = os.path.join('imagenet_data', 'file-name-registry.json')
+    wn_ids_path = os.path.join(app_data_folder, 'word_net_ids.txt')
+    registry_path = os.path.join(app_data_folder, 'file-name-registry.json')
+
+    @staticmethod
+    def wnid2synset(wn_id):
+        return Synset(wn_id=wn_id)
 
     def __init__(self, number_of_examples, destination, on_loaded):
         self.number_of_examples = number_of_examples
@@ -279,42 +289,37 @@ class ImageNet:
 
         self._on_loaded = on_loaded
         self._timeout = 2
+        self._wordnet_list = WordNetIdList(self.wn_ids_path)
 
     def download(self):
-        from time import time
-        start = time()
-        wordnet_list = WordNetIdList(self.wn_ids_path)
+        self._create_folders()
+        self._download()
 
-        file_name_registry = ItemsRegistry(self.registry_path)
-        url2file_name = Url2FileName(file_name_registry)
-
-        for wn_id in wordnet_list:
+    def _create_folders(self):
+        for wn_id in self._wordnet_list:
             folder_path = os.path.join(self.destination, str(wn_id))
             if not os.path.exists(folder_path):
                 os.mkdir(folder_path)
 
+    def _download(self):
+        file_name_registry = ItemsRegistry(self.registry_path)
+        url2file_name = Url2FileName(file_name_registry)
+
+        image_net_urls = ImageNetUrls(word_net_ids=self._wordnet_list,
+                                      wnid2synset=self.wnid2synset)
+
+        for wn_id, urls in image_net_urls:
+            folder_path = os.path.join(self.destination, str(wn_id))
             threading_downloader = ThreadingDownloader(
                 destination=folder_path, url2file_name=url2file_name
             )
 
-            synset = Synset(wn_id=wn_id)
+            successes = threading_downloader.download(urls)
+            self.downloaded += successes
+            self._on_loaded(successes)
 
-            while True:
-                try:
-                    urls = synset.next_batch(
-                        size=self.number_of_examples - self.downloaded
-                    )
-
-                    successes = threading_downloader.download(urls)
-                    self.downloaded += successes
-                    self._on_loaded(successes)
-
-                    if self.downloaded >= self.number_of_examples:
-                        end = time()
-                        print('Took %.3f seconds' % (end - start))
-                        return
-                except StopIteration:
-                    break
+            if self.downloaded >= self.number_of_examples:
+                break
 
 
 class MalformedUrlError(Exception):

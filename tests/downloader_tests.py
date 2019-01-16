@@ -247,6 +247,7 @@ class ImageNetUrlsTests(unittest.TestCase):
 
     synsets = {
         'n392093': ['url1', 'url2', 'url3', ''],
+        'n8323': ['', '\n'],
         'n38203': ['url4', ' \n ', 'url5']
     }
 
@@ -320,6 +321,20 @@ class ImageNetUrlsTests(unittest.TestCase):
                                          batch_size=-1)
 
         self.assertRaises(downloader.InvalidBatchError, f)
+
+    def test_with_single_synset(self):
+        word_net_ids = ['faliefj']
+
+        def wnid2synset(wn_id):
+            return ['url1']
+
+        it = downloader.ImageNetUrls(word_net_ids, wnid2synset)
+        results = []
+        for pair in it:
+            results.append(pair)
+
+        expected_pairs = [('faliefj', ['url1'])]
+        self.assertEqual(results, expected_pairs)
 
 
 if __name__ == '__main__':
