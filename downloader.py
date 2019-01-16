@@ -170,6 +170,9 @@ class ItemsRegistry:
             self._registry.remove(name)
             self._save()
 
+    def __len__(self):
+        return len(self._registry)
+
     def __contains__(self, name):
         return name in self._registry
 
@@ -180,13 +183,28 @@ class ItemsRegistry:
             f.writelines(to_be_saved)
 
 
-# todo:
 class Url2FileName:
     def __init__(self, file_name_registry):
-        pass
+        self._registry = file_name_registry
+        self._index = len(self._registry) + 1
 
     def convert(self, url):
-        pass
+        if url.rstrip() != url:
+            raise MalformedUrlError('Trailing new line character')
+
+        # todo check url has no trailing new line
+        fname = self._url_to_file_name(url)
+        base_name, extension = os.path.splitext(fname)
+
+        converted_name = str(self._index) + extension
+        assert converted_name not in self._registry
+
+        self._registry.add(converted_name)
+        self._index += 1
+        return converted_name
+
+    def _url_to_file_name(self, url):
+        return os.path.basename(urlparse(url).path)
 
 
 class ThreadingDownloader:
@@ -262,3 +280,7 @@ class ImageNet:
                         return
                 except StopIteration:
                     break
+
+
+class MalformedUrlError(Exception):
+    pass

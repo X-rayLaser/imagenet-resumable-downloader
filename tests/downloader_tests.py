@@ -3,6 +3,7 @@ import os
 import sys
 
 sys.path.insert(0, './')
+import downloader
 from downloader import WordNetIdList, Synset, ItemsRegistry
 
 
@@ -49,7 +50,7 @@ class SynsetTests(unittest.TestCase):
         self.assertEqual(urls[0], 'http://another-domain.com/x/y/z')
 
 
-class FileNameRegistryTests(unittest.TestCase):
+class WithRegistryMixin(unittest.TestCase):
     def setUp(self):
         file_dir = 'imagenet_data'
         file_path = os.path.join(file_dir, 'test_registry.json')
@@ -62,6 +63,8 @@ class FileNameRegistryTests(unittest.TestCase):
             os.remove(file_path)
         self.registry = ItemsRegistry(file_path)
 
+
+class FileNameRegistryTests(WithRegistryMixin):
     def test_adding_name_and_checking_it(self):
         registry = self.registry
         self.assertNotIn('Hello, world!', registry)
@@ -136,8 +139,69 @@ class FileNameRegistryTests(unittest.TestCase):
         self.assertNotIn('Second', registry)
 
 
-class Url2FileNameTests(unittest.TestCase):
-    pass
+class Url2FileNameTests(WithRegistryMixin):
+    def test_conversion_of_first_urls(self):
+        url2name = downloader.Url2FileName(self.registry)
+        first = url2name.convert('http://haha.com/hahahaha.jpg')
+        second = url2name.convert('http://example.com/hahahaha.png')
+        self.assertEqual(first, '1.jpg')
+        self.assertEqual(second, '2.png')
+
+    def test_that_urls_with_trailing_newline_are_forbidden(self):
+        url2name = downloader.Url2FileName(self.registry)
+
+        def f1():
+            url2name.convert('http://haha.com/hahahaha.jpg\n')
+
+        def f2():
+            url2name.convert('http://haha.com/hahahaha.jpg\n\r\n\r')
+
+        self.assertRaises(downloader.MalformedUrlError, f1)
+
+        self.assertRaises(downloader.MalformedUrlError, f2)
+
+        first = url2name.convert('http://haha.com/hahahaha.jpg')
+        self.assertEqual(first, '1.jpg')
+
+    def test_that_urls_with_trailing_spaces_are_forbidden(self):
+        url2name = downloader.Url2FileName(self.registry)
+
+        def f():
+            url2name.convert('http://haha.com/hahahaha.jpg    \n')
+
+        self.assertRaises(downloader.MalformedUrlError, f)
+
+        first = url2name.convert('http://haha.com/hahahaha.jpg')
+        self.assertEqual(first, '1.jpg')
+
+    def test_that_conversion_accounts_for_duplicates(self):
+        url2name = downloader.Url2FileName(self.registry)
+        first = url2name.convert('http://example.com/xyz.jpg')
+        second = url2name.convert('http://example.com/xyz.jpg')
+        self.assertEqual(first, '1.jpg')
+        self.assertEqual(second, '2.jpg')
+
+    def test_with_non_ascii_characters_in_url_file_path(self):
+        url2name = downloader.Url2FileName(self.registry)
+
+        from urllib import parse
+        path = parse.quote(' xyz~`!@#$%^&*()_+=-{}[];:\'"\|,.<>/?.jpg')
+        first = url2name.convert(
+            'http://example.com/' + path
+        )
+
+        self.assertEqual(first, '1.jpg')
+
+    def test_persistence(self):
+        url2name = downloader.Url2FileName(self.registry)
+        first = url2name.convert('http://example.com/xyz.jpg')
+        second = url2name.convert('http://example.com/xyz.jpg')
+
+        registry = downloader.ItemsRegistry(self.file_path)
+        url2name = downloader.Url2FileName(registry)
+
+        third = url2name.convert('http://example.com/third.gif')
+        self.assertEqual(third, '3.gif')
 
 
 if __name__ == '__main__':
