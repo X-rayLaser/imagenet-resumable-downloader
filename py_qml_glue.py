@@ -17,10 +17,17 @@ class DownloaderThread(QThread):
         self.images_per_category = images_per_category
 
     def run(self):
+        from config import config
+
+        log_path = os.path.join(config.app_data_folder, 'failed_urls.log')
+        if os.path.isfile(log_path):
+            os.remove(log_path)
+
         def on_image_downloaded(urls):
             self.imageLoaded.emit(urls)
 
         def on_download_failed(urls):
+            self._log_failures(log_path, urls)
             self.downloadFailed.emit(urls)
 
         imagenet = ImageNet(number_of_examples=self.number_of_examples,
@@ -29,6 +36,11 @@ class DownloaderThread(QThread):
                             on_loaded=on_image_downloaded,
                             on_failed=on_download_failed)
         imagenet.download()
+
+    def _log_failures(self, log_path, urls):
+        with open(log_path, 'a') as f:
+            lines = '\n'.join(urls)
+            f.write(lines)
 
 
 class RunningAverage:
