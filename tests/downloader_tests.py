@@ -3,8 +3,11 @@ import os
 import sys
 
 sys.path.insert(0, './')
-import downloader
-from downloader import WordNetIdList, Synset, ItemsRegistry
+
+import iterators
+import util
+from iterators import WordNetIdList, Synset
+from util import ItemsRegistry
 
 
 class WordNetIdListTests(unittest.TestCase):
@@ -126,14 +129,14 @@ class FileNameRegistryTests(WithRegistryMixin):
 
 class Url2FileNameTests(WithRegistryMixin):
     def test_conversion_of_first_urls(self):
-        url2name = downloader.Url2FileName(self.registry)
+        url2name = util.Url2FileName(self.registry)
         first = url2name.convert('http://haha.com/hahahaha.jpg')
         second = url2name.convert('http://example.com/hahahaha.png')
         self.assertEqual(first, '1.jpg')
         self.assertEqual(second, '2.png')
 
     def test_that_urls_with_trailing_newline_are_forbidden(self):
-        url2name = downloader.Url2FileName(self.registry)
+        url2name = util.Url2FileName(self.registry)
 
         def f1():
             url2name.convert('http://haha.com/hahahaha.jpg\n')
@@ -141,33 +144,33 @@ class Url2FileNameTests(WithRegistryMixin):
         def f2():
             url2name.convert('http://haha.com/hahahaha.jpg\n\r\n\r')
 
-        self.assertRaises(downloader.MalformedUrlError, f1)
+        self.assertRaises(util.MalformedUrlError, f1)
 
-        self.assertRaises(downloader.MalformedUrlError, f2)
+        self.assertRaises(util.MalformedUrlError, f2)
 
         first = url2name.convert('http://haha.com/hahahaha.jpg')
         self.assertEqual(first, '1.jpg')
 
     def test_that_urls_with_trailing_spaces_are_forbidden(self):
-        url2name = downloader.Url2FileName(self.registry)
+        url2name = util.Url2FileName(self.registry)
 
         def f():
             url2name.convert('http://haha.com/hahahaha.jpg    \n')
 
-        self.assertRaises(downloader.MalformedUrlError, f)
+        self.assertRaises(util.MalformedUrlError, f)
 
         first = url2name.convert('http://haha.com/hahahaha.jpg')
         self.assertEqual(first, '1.jpg')
 
     def test_that_conversion_accounts_for_duplicates(self):
-        url2name = downloader.Url2FileName(self.registry)
+        url2name = util.Url2FileName(self.registry)
         first = url2name.convert('http://example.com/xyz.jpg')
         second = url2name.convert('http://example.com/xyz.jpg')
         self.assertEqual(first, '1.jpg')
         self.assertEqual(second, '2.jpg')
 
     def test_with_non_ascii_characters_in_url_file_path(self):
-        url2name = downloader.Url2FileName(self.registry)
+        url2name = util.Url2FileName(self.registry)
 
         from urllib import parse
         path = parse.quote(' xyz~`!@#$%^&*()_+=-{}[];:\'"\|,.<>/?.jpg')
@@ -178,12 +181,12 @@ class Url2FileNameTests(WithRegistryMixin):
         self.assertEqual(first, '1.jpg')
 
     def test_persistence(self):
-        url2name = downloader.Url2FileName(self.registry)
+        url2name = util.Url2FileName(self.registry)
         first = url2name.convert('http://example.com/xyz.jpg')
         second = url2name.convert('http://example.com/xyz.jpg')
 
-        registry = downloader.ItemsRegistry(self.file_path)
-        url2name = downloader.Url2FileName(registry)
+        registry = util.ItemsRegistry(self.file_path)
+        url2name = util.Url2FileName(registry)
 
         third = url2name.convert('http://example.com/third.gif')
         self.assertEqual(third, '3.gif')
@@ -202,8 +205,8 @@ class ImageNetUrlsTests(unittest.TestCase):
         def wnid2synset(wn_id):
             return self.synsets[wn_id]
 
-        it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                     batch_size=2)
+        it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                    batch_size=2)
         results = []
         for pair in it:
             results.append(pair)
@@ -219,8 +222,8 @@ class ImageNetUrlsTests(unittest.TestCase):
         def wnid2synset(wn_id):
             return self.synsets[wn_id]
 
-        it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                     batch_size=1)
+        it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                    batch_size=1)
         results = []
         for pair in it:
             results.append(pair)
@@ -238,7 +241,7 @@ class ImageNetUrlsTests(unittest.TestCase):
         def wnid2synset(wn_id):
             return self.synsets[wn_id]
 
-        it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset)
+        it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset)
         results = []
         for pair in it:
             results.append(pair)
@@ -254,20 +257,20 @@ class ImageNetUrlsTests(unittest.TestCase):
             return self.synsets[wn_id]
 
         def f():
-            it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                         batch_size=0)
+            it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                        batch_size=0)
 
-        self.assertRaises(downloader.InvalidBatchError, f)
+        self.assertRaises(iterators.InvalidBatchError, f)
 
     def test_with_negative_batch_size(self):
         def wnid2synset(wn_id):
             return self.synsets[wn_id]
 
         def f():
-            it = downloader.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                         batch_size=-1)
+            it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
+                                        batch_size=-1)
 
-        self.assertRaises(downloader.InvalidBatchError, f)
+        self.assertRaises(iterators.InvalidBatchError, f)
 
     def test_with_single_synset(self):
         word_net_ids = ['faliefj']
@@ -275,7 +278,7 @@ class ImageNetUrlsTests(unittest.TestCase):
         def wnid2synset(wn_id):
             return ['url1']
 
-        it = downloader.ImageNetUrls(word_net_ids, wnid2synset)
+        it = iterators.ImageNetUrls(word_net_ids, wnid2synset)
         results = []
         for pair in it:
             results.append(pair)
