@@ -12,6 +12,7 @@ Window {
 
     property int images_loaded: 0
     property int images_total: 10
+    property int failures: 0
     property bool download_completed: true
 
     FileDialog {
@@ -99,8 +100,11 @@ Window {
                 onClicked: {
                     download_button.enabled = false;
                     root.images_loaded = 0;
+                    root.failures = 0;
                     complete_label.visible = false;
                     time_left_row.visible = true;
+                    downloaded_amount_row.visible = true;
+                    failures_amount_row.visible = true;
                     root.images_total = amount_spnibox.value;
 
                     downloader.start_download(download_path.text,
@@ -130,6 +134,44 @@ Window {
             }
         }
 
+        Row {
+            id: downloaded_amount_row
+            spacing: 15
+            visible: false
+            anchors.horizontalCenter: parent.horizontalCenter
+            Text {
+                text: "Downloaded:"
+                font.pointSize: 20.5
+                font.bold: true
+            }
+
+            Text {
+                id: downloaded_amount
+                text: root.images_loaded
+                font.pointSize: 20.5
+                font.bold: true
+            }
+        }
+
+        Row {
+            id: failures_amount_row
+            spacing: 15
+            visible: false
+            anchors.horizontalCenter: parent.horizontalCenter
+            Text {
+                text: "Failures:"
+                font.pointSize: 20.5
+                font.bold: true
+            }
+
+            Text {
+                id: failures_amount
+                text: root.failures
+                font.pointSize: 20.5
+                font.bold: true
+            }
+        }
+
         Text {
             id: complete_label
             text: "Download is complete"
@@ -149,6 +191,10 @@ Window {
                 complete_label.visible = true;
                 time_left_row.visible = false;
             }
+        }
+
+        onDownloadFailed: {
+            root.failures += 1;
         }
     }
 }

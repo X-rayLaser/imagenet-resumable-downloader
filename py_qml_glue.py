@@ -7,7 +7,8 @@ from urllib.parse import urlparse
 
 
 class DownloaderThread(QThread):
-    imageLoaded = QtCore.pyqtSignal(int)
+    imageLoaded = QtCore.pyqtSignal(list)
+    downloadFailed = QtCore.pyqtSignal(list)
 
     def __init__(self, destination, number_of_examples, images_per_category):
         super().__init__()
@@ -16,13 +17,17 @@ class DownloaderThread(QThread):
         self.images_per_category = images_per_category
 
     def run(self):
-        def on_image_downloaded(amount):
-            self.imageLoaded.emit(amount)
+        def on_image_downloaded(urls):
+            self.imageLoaded.emit(urls)
+
+        def on_download_failed(urls):
+            self.downloadFailed.emit(urls)
 
         imagenet = ImageNet(number_of_examples=self.number_of_examples,
                             images_per_category=self.images_per_category,
                             destination=self.destination,
-                            on_loaded=on_image_downloaded)
+                            on_loaded=on_image_downloaded,
+                            on_failed=on_download_failed)
         imagenet.download()
 
 
@@ -63,6 +68,8 @@ class RunningAverage:
 class Worker(QtCore.QObject):
     imageLoaded = QtCore.pyqtSignal()
 
+    downloadFailed = QtCore.pyqtSignal()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._complete = True
@@ -88,7 +95,8 @@ class Worker(QtCore.QObject):
                                        number_of_examples=nimages,
                                        images_per_category=per_category)
 
-        def handle_loaded(amount):
+        def handle_loaded(urls):
+            amount = len(urls)
             self._images += amount
 
             if self._images >= nimages:
@@ -98,7 +106,14 @@ class Worker(QtCore.QObject):
             for i in range(amount):
                 self.imageLoaded.emit()
 
+        def handle_failed(urls):
+            amount = len(urls)
+
+            for i in range(amount):
+                self.downloadFailed.emit()
+
         self.thread.imageLoaded.connect(handle_loaded)
+        self.thread.downloadFailed.connect(handle_failed)
 
         self._running_avg.reset()
         self.thread.start()

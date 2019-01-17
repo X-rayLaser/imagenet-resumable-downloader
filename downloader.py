@@ -57,7 +57,8 @@ class ImageValidator:
 class DummyValidator:
     @staticmethod
     def valid_image(path):
-        return True
+        import random
+        return random.random() > 0.5
 
 
 class ThreadingDownloader:
@@ -67,12 +68,22 @@ class ThreadingDownloader:
         self._destination = destination
         self._url2file_name = url2file_name
 
+        self.downloaded_urls = []
+        self.failed_urls = []
+
     def download(self, urls):
+        self.downloaded_urls = []
+        self.failed_urls = []
+
         args = [(url, self._url2file_name.convert(url)) for url in urls]
         pool = self.pool
-        statuses = list(pool.map(self._download, args))
-        successes = sum(statuses)
-        return successes
+        results = list(pool.map(self._download, args))
+
+        for url, success in zip(urls, results):
+            if success:
+                self.downloaded_urls.append(url)
+            else:
+                self.failed_urls.append(url)
 
     def _download(self, args):
         image_url, file_name = args
@@ -84,12 +95,12 @@ class ThreadingDownloader:
         Validator = DummyValidator
         if success:
             if Validator.valid_image(file_path):
-                return 1
+                return True
             else:
                 os.remove(file_path)
-                return 0
+                return False
         else:
-            return 0
+            return False
 
 
 class DownloadLocation:
@@ -112,7 +123,7 @@ class ImageNet:
         return Synset(wn_id=wn_id)
 
     def __init__(self, number_of_examples, images_per_category,
-                 destination, on_loaded):
+                 destination, on_loaded, on_failed):
         self.number_of_examples = number_of_examples
         self.images_per_category = images_per_category
         self.downloaded = 0
@@ -120,6 +131,7 @@ class ImageNet:
         self.training_set = []
 
         self._on_loaded = on_loaded
+        self._on_failed = on_failed
         self._timeout = 2
         self._wordnet_list = WordNetIdList(config.wn_ids_path)
 
@@ -136,12 +148,13 @@ class ImageNet:
                 destination=folder_path, url2file_name=url2file_name
             )
 
-            #category_images = []
-            #while
             batch = urls[:self.images_per_category]
-            successes = threading_downloader.download(batch)
-            self.downloaded += successes
-            self._on_loaded(successes)
+            threading_downloader.download(batch)
+
+            self._on_loaded(threading_downloader.downloaded_urls)
+            self._on_failed(threading_downloader.failed_urls)
+
+            self.downloaded += len(threading_downloader.downloaded_urls)
 
             if self.downloaded >= self.number_of_examples:
                 break
