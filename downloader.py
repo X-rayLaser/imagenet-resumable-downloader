@@ -10,8 +10,8 @@ from time import time
 app_data_folder = 'imagenet_data'
 
 
-# todo: instantiate threading pool once
-# todo: Lazy creation of directories
+# todo: ImagenetDataDirectory
+# todo: Lazy creation of directories when accessing them
 
 
 class LinesIterator:
@@ -61,20 +61,6 @@ class Synset(LinesIterator):
 
     def file_path(self):
         return self.synset_urls_path
-
-    def next_batch(self, size):
-        lines = []
-        try:
-            for i in range(size):
-                line = next(self._lines_iterator)
-                lines.append(line.rstrip())
-        except StopIteration:
-            print('StopIteration')
-            pass
-        return lines
-
-    def get_url_batches(self, size):
-        return []
 
     def _download_list(self, wn_id):
         url = 'http://www.image-net.org/api/text/imagenet.synset.geturls?' \
@@ -128,7 +114,7 @@ def url_to_file_path(destination_dir, url):
 
 
 class FileDownloader:
-    def __init__(self, destination, timeout=2):
+    def __init__(self, destination, timeout=1):
         self.destination = destination
         self._timeout = timeout
 
@@ -147,8 +133,7 @@ class FileDownloader:
                 print('Bad code {}. Url {}'.format(code, url))
                 return False
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            print('Failed downloaing {}'.format(url))
             return False
 
 
@@ -158,9 +143,6 @@ class DummyDownloader:
         self._timeout = timeout
 
     def download(self, url):
-        import time
-        import random
-        #time.sleep(2 * random.random())
         file_path = self.destination
         with open(file_path, 'w') as f:
             f.write('x' * 100)
@@ -180,6 +162,7 @@ class ImageValidator:
 class DummyValidator:
     @staticmethod
     def valid_image(path):
+        return True
         import random
         return random.random() > 0.5
 
@@ -243,6 +226,7 @@ class Url2FileName:
 
 class ThreadingDownloader:
     max_workers = 1000
+    pool = ThreadPoolExecutor(max_workers=max_workers)
 
     def __init__(self, destination, url2file_name):
         self.destination = destination
@@ -250,7 +234,7 @@ class ThreadingDownloader:
 
     def download(self, urls):
         args = [(url, self._url2file_name.convert(url)) for url in urls]
-        pool = ThreadPoolExecutor(max_workers=self.max_workers)
+        pool = self.pool
         statuses = list(pool.map(self._download, args))
         successes = sum(statuses)
         return successes
@@ -292,14 +276,13 @@ class ImageNet:
         self._wordnet_list = WordNetIdList(self.wn_ids_path)
 
     def download(self):
-        self._create_folders()
+        #self._create_folders() # too many folders at once, hard to navigate them later
         self._download()
 
     def _create_folders(self):
         for wn_id in self._wordnet_list:
             folder_path = os.path.join(self.destination, str(wn_id))
-            if not os.path.exists(folder_path):
-                os.mkdir(folder_path)
+            self._create_if_not_exist(folder_path)
 
     def _download(self):
         file_name_registry = ItemsRegistry(self.registry_path)
@@ -310,6 +293,7 @@ class ImageNet:
 
         for wn_id, urls in image_net_urls:
             folder_path = os.path.join(self.destination, str(wn_id))
+            self._create_if_not_exist(folder_path)
             threading_downloader = ThreadingDownloader(
                 destination=folder_path, url2file_name=url2file_name
             )
@@ -320,6 +304,10 @@ class ImageNet:
 
             if self.downloaded >= self.number_of_examples:
                 break
+
+    def _create_if_not_exist(self, dir_path):
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
 
 
 class MalformedUrlError(Exception):
