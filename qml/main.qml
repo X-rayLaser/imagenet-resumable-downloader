@@ -56,13 +56,29 @@ Window {
             width: parent.width
 
             Text {
-                text: "# of images to download"
+                text: "maximum # of images to download"
             }
             SpinBox {
                 id: amount_spnibox
                 from: 1
                 to: 100000
-                value: 5
+                value: 3000
+                editable: true
+            }
+        }
+
+        Row {
+            spacing: 15
+            width: parent.width
+
+            Text {
+                text: "# of images per category"
+            }
+            SpinBox {
+                id: images_per_category_spnibox
+                from: 1
+                to: 100000
+                value: 100
                 editable: true
             }
         }
@@ -86,7 +102,11 @@ Window {
                     complete_label.visible = false;
                     time_left_row.visible = true;
                     root.images_total = amount_spnibox.value;
-                    downloader.start_download(download_path.text, amount_spnibox.value);
+
+                    downloader.start_download(download_path.text,
+                            amount_spnibox.value,
+                            images_per_category_spnibox.value
+                    );
                 }
             }
         }

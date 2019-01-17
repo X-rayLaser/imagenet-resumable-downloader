@@ -1,4 +1,8 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
+
+
+# todo: download from config.json
 
 
 class Config:
@@ -17,6 +21,9 @@ class Config:
 
         self.word_net_ids_timeout = 120
         self.synsets_timeout = 120
+        self.file_download_timeout = 1
+
+        self.pool_executor = ThreadPoolExecutor(max_workers=100)
 
     def synset_urls_path(self, word_net_id):
         file_name = 'synset_urls_{}.txt'.format(word_net_id)

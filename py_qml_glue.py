@@ -9,16 +9,18 @@ from urllib.parse import urlparse
 class DownloaderThread(QThread):
     imageLoaded = QtCore.pyqtSignal(int)
 
-    def __init__(self, destination, number_of_examples):
+    def __init__(self, destination, number_of_examples, images_per_category):
         super().__init__()
         self.destination = destination
         self.number_of_examples = number_of_examples
+        self.images_per_category = images_per_category
 
     def run(self):
         def on_image_downloaded(amount):
             self.imageLoaded.emit(amount)
 
         imagenet = ImageNet(number_of_examples=self.number_of_examples,
+                            images_per_category=self.images_per_category,
                             destination=self.destination,
                             on_loaded=on_image_downloaded)
         imagenet.download()
@@ -69,9 +71,12 @@ class Worker(QtCore.QObject):
         self._running_avg = RunningAverage()
         self._number_of_images = 0
 
-    @QtCore.pyqtSlot(str, int)
-    def start_download(self, destination, number_of_images):
+    @QtCore.pyqtSlot(str, int, int)
+    def start_download(self, destination, number_of_images,
+                       images_per_category):
         nimages = int(number_of_images)
+        per_category = int(images_per_category)
+
         self._number_of_images = nimages
 
         self._complete = False
@@ -79,7 +84,9 @@ class Worker(QtCore.QObject):
 
         path = self._parse_url(destination)
 
-        self.thread = DownloaderThread(destination=path, number_of_examples=nimages)
+        self.thread = DownloaderThread(destination=path,
+                                       number_of_examples=nimages,
+                                       images_per_category=per_category)
 
         def handle_loaded(amount):
             self._images += amount

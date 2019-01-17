@@ -8,19 +8,16 @@ from util import ItemsRegistry, Url2FileName
 from config import config
 
 
-# todo: ImagenetDataDirectory
-# todo: Lazy creation of directories when accessing them
-
-
 class FileDownloader:
-    def __init__(self, destination, timeout=1):
+    timeout = config.file_download_timeout
+
+    def __init__(self, destination):
         self.destination = destination
-        self._timeout = timeout
 
     def download(self, url):
         file_path = self.destination
         try:
-            r = requests.get(url, stream=True, timeout=self._timeout)
+            r = requests.get(url, stream=True, timeout=self.timeout)
             code = r.status_code
             if code == requests.codes.ok:
                 with open(file_path, 'wb') as f:
@@ -37,9 +34,8 @@ class FileDownloader:
 
 
 class DummyDownloader:
-    def __init__(self, destination, timeout=2):
+    def __init__(self, destination):
         self.destination = destination
-        self._timeout = timeout
 
     def download(self, url):
         file_path = self.destination
@@ -65,8 +61,7 @@ class DummyValidator:
 
 
 class ThreadingDownloader:
-    max_workers = 1000
-    pool = ThreadPoolExecutor(max_workers=max_workers)
+    pool = config.pool_executor
 
     def __init__(self, destination, url2file_name):
         self._destination = destination
@@ -116,8 +111,10 @@ class ImageNet:
     def wnid2synset(wn_id):
         return Synset(wn_id=wn_id)
 
-    def __init__(self, number_of_examples, destination, on_loaded):
+    def __init__(self, number_of_examples, images_per_category,
+                 destination, on_loaded):
         self.number_of_examples = number_of_examples
+        self.images_per_category = images_per_category
         self.downloaded = 0
         self._location = DownloadLocation(destination)
         self.training_set = []
@@ -139,7 +136,10 @@ class ImageNet:
                 destination=folder_path, url2file_name=url2file_name
             )
 
-            successes = threading_downloader.download(urls)
+            #category_images = []
+            #while
+            batch = urls[:self.images_per_category]
+            successes = threading_downloader.download(batch)
             self.downloaded += successes
             self._on_loaded(successes)
 
