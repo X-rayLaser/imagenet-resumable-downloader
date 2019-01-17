@@ -68,7 +68,7 @@ class RunningAverage:
 class Worker(QtCore.QObject):
     imageLoaded = QtCore.pyqtSignal()
 
-    downloadFailed = QtCore.pyqtSignal()
+    downloadFailed = QtCore.pyqtSignal(int, list, arguments=['failures', 'failed_urls'])
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -109,8 +109,7 @@ class Worker(QtCore.QObject):
         def handle_failed(urls):
             amount = len(urls)
 
-            for i in range(amount):
-                self.downloadFailed.emit()
+            self.downloadFailed.emit(amount, urls)
 
         self.thread.imageLoaded.connect(handle_loaded)
         self.thread.downloadFailed.connect(handle_failed)

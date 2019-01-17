@@ -6,8 +6,10 @@ import QtQuick.Dialogs 1.0
 
 Window {
     id: root
+    x: 400
+    y: 400
     width: 600
-    height: 500
+    height: 650
     visible: true
 
     property int images_loaded: 0
@@ -63,7 +65,7 @@ Window {
                 id: amount_spnibox
                 from: 1
                 to: 100000
-                value: 3000
+                value: 90
                 editable: true
             }
         }
@@ -172,6 +174,19 @@ Window {
             }
         }
 
+        ScrollView {
+            width: parent.width
+            height: 200
+
+            ListView {
+                id: failed_urls_model
+                model: []
+                delegate: ItemDelegate {
+                    text: modelData
+                }
+            }
+        }
+
         Text {
             id: complete_label
             text: "Download is complete"
@@ -193,8 +208,11 @@ Window {
             }
         }
 
-        onDownloadFailed: {
-            root.failures += 1;
-        }
+        onDownloadFailed: handleDownloadFailed(failures, failed_urls)
+    }
+
+    function handleDownloadFailed(failures, failed_urls) {
+        root.failures += failures;
+        failed_urls_model.model = failed_urls;
     }
 }
