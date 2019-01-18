@@ -2,10 +2,20 @@ import requests
 import shutil
 import os
 from PIL import Image
-from concurrent.futures import ThreadPoolExecutor
 from iterators import WordNetIdList, Synset, ImageNetUrls
 from util import ItemsRegistry, Url2FileName
 from config import config
+
+
+#todo: Implement session for storing the state of the app
+
+
+class Session:
+    def __init__(self):
+        self.number_of_images = 0
+        self.images_per_category = 0
+        self.failed_urls = 0
+        self.downloaded_urls = {}
 
 
 class FileDownloader:

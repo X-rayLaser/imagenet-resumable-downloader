@@ -91,29 +91,25 @@ Window {
             width: parent.width
             ProgressBar {
                 id: bar
-                width: 3 * parent.width / 4
+                width: parent.width
                 value: images_loaded / images_total
             }
+        }
+
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
 
             Button {
                 id: download_button
                 text: "Download"
-                width: 1 * parent.width / 5
-                onClicked: {
-                    download_button.enabled = false;
-                    root.images_loaded = 0;
-                    root.failures = 0;
-                    complete_label.visible = false;
-                    time_left_row.visible = true;
-                    downloaded_amount_row.visible = true;
-                    failures_amount_row.visible = true;
-                    root.images_total = amount_spnibox.value;
+                onClicked: startDownload()
+            }
 
-                    downloader.start_download(download_path.text,
-                            amount_spnibox.value,
-                            images_per_category_spnibox.value
-                    );
-                }
+            Button {
+                id: toggle_button
+                text: "Pause"
+                onClicked: togglePause()
+                visible: false
             }
         }
 
@@ -198,21 +194,69 @@ Window {
 
     Connections {
         target: downloader
-        onImageLoaded: {
-            root.images_loaded += 1;
-            time_left.text = downloader.time_remaining;
-            if (root.images_loaded === root.images_total) {
-                download_button.enabled = true;
-                complete_label.visible = true;
-                time_left_row.visible = false;
-            }
-        }
-
+        onImageLoaded: handleImagesDownloaded()
         onDownloadFailed: handleDownloadFailed(failures, failed_urls)
+        onDownloadPaused: handlePaused()
+        onDownloadResumed: handleResumed()
+    }
+
+    function handleImagesDownloaded() {
+        root.images_loaded += 1;
+        time_left.text = downloader.time_remaining;
+        if (root.images_loaded === root.images_total) {
+            download_button.enabled = true;
+            download_button.visible = true;
+            complete_label.visible = true;
+            time_left_row.visible = false;
+            toggle_button.visible = false;
+        }
     }
 
     function handleDownloadFailed(failures, failed_urls) {
         root.failures += failures;
         failed_urls_model.model = failed_urls;
+    }
+
+    function startDownload() {
+        download_button.enabled = false;
+        root.images_loaded = 0;
+        root.failures = 0;
+        complete_label.visible = false;
+        time_left_row.visible = true;
+        downloaded_amount_row.visible = true;
+        failures_amount_row.visible = true;
+        root.images_total = amount_spnibox.value;
+
+        downloader.start_download(download_path.text,
+                amount_spnibox.value,
+                images_per_category_spnibox.value
+        );
+
+        download_button.visible = false;
+        toggle_button.visible = true;
+        toggle_button.enabled = true;
+        toggle_button.text = "Pause";
+    }
+
+    function togglePause() {
+        if (toggle_button.text === "Pause") {
+            toggle_button.enabled = false;
+            toggle_button.text = "Pausing"
+            downloader.pause();
+        } else {
+            toggle_button.enabled = false;
+            toggle_button.text = "Resume"
+            downloader.resume();
+        }
+    }
+
+    function handlePaused() {
+        toggle_button.text = "Resume";
+        toggle_button.enabled = true;
+    }
+
+    function handleResumed() {
+        toggle_button.text = "Pause";
+        toggle_button.enabled = true;
     }
 }

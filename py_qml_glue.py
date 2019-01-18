@@ -80,7 +80,13 @@ class RunningAverage:
 class Worker(QtCore.QObject):
     imageLoaded = QtCore.pyqtSignal()
 
-    downloadFailed = QtCore.pyqtSignal(int, list, arguments=['failures', 'failed_urls'])
+    downloadFailed = QtCore.pyqtSignal(
+        int, list, arguments=['failures', 'failed_urls']
+    )
+
+    downloadPaused = QtCore.pyqtSignal()
+
+    downloadResumed = QtCore.pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -128,6 +134,14 @@ class Worker(QtCore.QObject):
 
         self._running_avg.reset()
         self.thread.start()
+
+    @QtCore.pyqtSlot()
+    def pause(self):
+        self.downloadPaused.emit()
+
+    @QtCore.pyqtSlot()
+    def resume(self):
+        self.downloadResumed.emit()
 
     @QtCore.pyqtProperty(int)
     def images_downloaded(self):
