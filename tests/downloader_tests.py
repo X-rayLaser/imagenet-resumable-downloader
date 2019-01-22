@@ -8,6 +8,10 @@ import iterators
 import util
 from iterators import WordNetIdList, Synset
 from util import ItemsRegistry
+from config import config
+import shutil
+import downloader
+from downloader import Url2FileName
 
 
 class WordNetIdListTests(unittest.TestCase):
@@ -287,5 +291,37 @@ class ImageNetUrlsTests(unittest.TestCase):
         self.assertEqual(results, expected_pairs)
 
 
+class ThreadingDownloaderTests(unittest.TestCase):
+    def setUp(self):
+        factory = downloader.get_factory()
+
+        self.destination = os.path.join(config.app_data_folder,
+                                        'image_net_home')
+
+        if os.path.exists(self.destination):
+            shutil.rmtree(self.destination)
+        os.makedirs(self.destination)
+
+        file_name_registry = ItemsRegistry(config.registry_path)
+        url2file_name = Url2FileName(file_name_registry)
+
+        self.downloader = factory.new_threading_downloader(
+            destination=self.destination, url2file_name=url2file_name
+        )
+
+    def test_with_multiple_urls(self):
+        urls = ['first url'] * 5
+        self.downloader.download(urls)
+
+        file_list = []
+        for dirname, dirs, filenames in os.walk(self.destination):
+            print(filenames)
+            file_list.extend(filenames)
+
+        expected_num_of_files = len(self.downloader.downloaded_urls)
+        self.assertEqual(len(file_list), expected_num_of_files)
+
+
 if __name__ == '__main__':
+    os.environ['TEST_ENV'] = 'test environment'
     unittest.main()

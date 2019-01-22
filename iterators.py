@@ -68,7 +68,8 @@ class Synset(LinesIterator):
                 r.raw.decode_content = True
                 shutil.copyfileobj(r.raw, f)
 
-
+# todo: method def offset(wn_id, url)
+# todo: DownloadManager class (start, pause, resume)
 class ImageNetUrls:
     def __init__(self, word_net_ids, wnid2synset, batch_size=1000):
         if batch_size <= 0:

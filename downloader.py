@@ -98,11 +98,10 @@ class ThreadingDownloader:
     def _download(self, args):
         image_url, file_name = args
         file_path = os.path.join(self._destination, file_name)
-        #downloader = FileDownloader(destination=file_path)
-        downloader = DummyDownloader(destination=file_path)
+        downloader = self.get_file_downloader(destination=file_path)
         success = downloader.download(image_url)
 
-        Validator = DummyValidator
+        Validator = self.get_validator()
         if success:
             if Validator.valid_image(file_path):
                 return True
@@ -111,6 +110,20 @@ class ThreadingDownloader:
                 return False
         else:
             return False
+
+    def get_file_downloader(self, destination):
+        return FileDownloader(destination=destination)
+
+    def get_validator(self):
+        return ImageValidator
+
+
+class TestThreadingDownloader(ThreadingDownloader):
+    def get_file_downloader(self, destination):
+        return DummyDownloader(destination=destination)
+
+    def get_validator(self):
+        return DummyValidator
 
 
 class DownloadLocation:
@@ -168,3 +181,94 @@ class ImageNet:
 
             if self.downloaded >= self.number_of_examples:
                 break
+
+
+class Counter:
+    def update(self, count):
+        pass
+
+    def is_complete(self):
+        pass
+
+
+class UltimateDownloader:
+    def load_next_batch(self):
+        return [], []
+
+    def save(self, fname):
+        pass
+
+    def load(self, fname):
+        pass
+
+
+from PyQt5.QtCore import QThread, pyqtSignal
+
+
+# todo: fix DownloadManager, make it thread-safe
+# todo: test DownloadManger with fake urls (and fake wn_id list)
+# todo: use ImageNet class in DownloadManger
+# todo: ImageNetUrls iterator must return only one url at a time
+
+
+class StoppableDownloader(QThread):
+    paused = pyqtSignal()
+    resumed = pyqtSignal()
+
+    imageLoaded = pyqtSignal(list)
+    downloadFailed = pyqtSignal(list)
+
+    def __init__(self):
+        super().__init__()
+        self._running = False
+        self._downloader = UltimateDownloader()
+        self._counter = Counter()
+
+    def run(self):
+        self._running = True
+
+        while True:
+            self._wait_until_resumed()
+            failed_urls, succeeded_urls = self._downloader.load_next_batch()
+            self.downloadFailed.emit(failed_urls)
+            self.imageLoaded.emit(succeeded_urls)
+
+            successes = len(succeeded_urls)
+            self._counter.update(successes)
+            if self._counter.is_complete():
+                # save state, etc.
+                return
+
+    def _wait_until_resumed(self):
+        if not self._running:
+            self.paused.emit()
+
+        import time
+        while True:
+            time.sleep(0.5)
+            if self._running:
+                self.resumed.emit()
+                break
+
+    def pause(self):
+        self._running = False
+
+    def resume(self):
+        self._running = True
+
+
+class ProductionFactory:
+    def __init__(self):
+        raise Exception('That should not have been called')
+
+
+class TestFactory:
+    def new_threading_downloader(self, destination, url2file_name):
+        return TestThreadingDownloader(destination, url2file_name)
+
+
+def get_factory():
+    if os.getenv('TEST_ENV'):
+        return TestFactory()
+    else:
+        return ProductionFactory
