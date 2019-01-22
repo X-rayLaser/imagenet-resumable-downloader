@@ -6,7 +6,7 @@ import time
 from urllib.parse import urlparse
 
 
-class DownloaderThread(QThread):
+class DownloadManager(QThread):
     imageLoaded = QtCore.pyqtSignal(list)
     downloadFailed = QtCore.pyqtSignal(list)
 
@@ -109,9 +109,9 @@ class Worker(QtCore.QObject):
 
         path = self._parse_url(destination)
 
-        self.thread = DownloaderThread(destination=path,
-                                       number_of_examples=nimages,
-                                       images_per_category=per_category)
+        self.thread = DownloadManager(destination=path,
+                                      number_of_examples=nimages,
+                                      images_per_category=per_category)
 
         def handle_loaded(urls):
             amount = len(urls)

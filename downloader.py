@@ -50,7 +50,7 @@ class DummyDownloader:
     def download(self, url):
         file_path = self.destination
         with open(file_path, 'w') as f:
-            f.write('x' * 100)
+            f.write('Dummy downloader written file')
         return True
 
 
@@ -165,9 +165,11 @@ class ImageNet:
         image_net_urls = ImageNetUrls(word_net_ids=self._wordnet_list,
                                       wnid2synset=self.wnid2synset)
 
+        factory = get_factory()
+
         for wn_id, urls in image_net_urls:
             folder_path = self._location.category_path(wn_id)
-            threading_downloader = ThreadingDownloader(
+            threading_downloader = factory.new_threading_downloader(
                 destination=folder_path, url2file_name=url2file_name
             )
 
@@ -258,8 +260,9 @@ class StoppableDownloader(QThread):
 
 
 class ProductionFactory:
-    def __init__(self):
-        raise Exception('That should not have been called')
+    def new_threading_downloader(self, destination, url2file_name):
+        raise Exception('oopse')
+        return ThreadingDownloader(destination, url2file_name)
 
 
 class TestFactory:
@@ -271,4 +274,4 @@ def get_factory():
     if os.getenv('TEST_ENV'):
         return TestFactory()
     else:
-        return ProductionFactory
+        return ProductionFactory()

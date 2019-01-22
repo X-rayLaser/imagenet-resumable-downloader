@@ -12,6 +12,7 @@ from config import config
 import shutil
 import downloader
 from downloader import Url2FileName
+from py_qml_glue import DownloadManager
 
 
 class WordNetIdListTests(unittest.TestCase):
@@ -315,11 +316,20 @@ class ThreadingDownloaderTests(unittest.TestCase):
 
         file_list = []
         for dirname, dirs, filenames in os.walk(self.destination):
-            print(filenames)
-            file_list.extend(filenames)
+            paths = [os.path.join(dirname, fname) for fname in filenames]
+            file_list.extend(paths)
 
         expected_num_of_files = len(self.downloader.downloaded_urls)
         self.assertEqual(len(file_list), expected_num_of_files)
+
+        for path in file_list:
+            with open(path, 'r') as f:
+                self.assertEqual(f.read(), 'Dummy downloader written file')
+
+
+class DownloadManagerTests(unittest.TestCase):
+    def test_imageLoaded_signal(self):
+        DownloadManager
 
 
 if __name__ == '__main__':
