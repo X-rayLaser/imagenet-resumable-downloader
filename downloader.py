@@ -3,7 +3,7 @@ import shutil
 import os
 from PIL import Image
 import iterators
-from util import ItemsRegistry, Url2FileName
+from util import Url2FileName
 from config import config
 
 
@@ -186,70 +186,10 @@ class Counter:
         pass
 
 
-class UltimateDownloader:
-    def load_next_batch(self):
-        return [], []
-
-    def save(self, fname):
-        pass
-
-    def load(self, fname):
-        pass
-
-
-from PyQt5.QtCore import QThread, pyqtSignal
-
-
 # todo: fix DownloadManager, make it thread-safe
 # todo: test DownloadManger with fake urls (and fake wn_id list)
 # todo: use ImageNet class in DownloadManger
 # todo: ImageNetUrls iterator must return only one url at a time
-
-
-class StoppableDownloader(QThread):
-    paused = pyqtSignal()
-    resumed = pyqtSignal()
-
-    imageLoaded = pyqtSignal(list)
-    downloadFailed = pyqtSignal(list)
-
-    def __init__(self):
-        super().__init__()
-        self._running = False
-        self._downloader = UltimateDownloader()
-        self._counter = Counter()
-
-    def run(self):
-        self._running = True
-
-        while True:
-            self._wait_until_resumed()
-            failed_urls, succeeded_urls = self._downloader.load_next_batch()
-            self.downloadFailed.emit(failed_urls)
-            self.imageLoaded.emit(succeeded_urls)
-
-            successes = len(succeeded_urls)
-            self._counter.update(successes)
-            if self._counter.is_complete():
-                # save state, etc.
-                return
-
-    def _wait_until_resumed(self):
-        if not self._running:
-            self.paused.emit()
-
-        import time
-        while True:
-            time.sleep(0.5)
-            if self._running:
-                self.resumed.emit()
-                break
-
-    def pause(self):
-        self._running = False
-
-    def resume(self):
-        self._running = True
 
 
 class ProductionFactory:
