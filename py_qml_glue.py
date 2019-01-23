@@ -32,30 +32,6 @@ class DownloadManager(QThread):
 
         self.downloaded = 0
 
-    """
-    def run(self):
-        from config import config
-
-        log_path = os.path.join(config.app_data_folder, 'failed_urls.log')
-        if os.path.isfile(log_path):
-            os.remove(log_path)
-
-        def on_image_downloaded(urls):
-            self.imagesLoaded.emit(urls)
-
-        def on_download_failed(urls):
-            self._log_failures(log_path, urls)
-            self.downloadFailed.emit(urls)
-
-        imagenet = ImageNet(number_of_examples=self.number_of_examples,
-                            images_per_category=self.images_per_category,
-                            destination=self.destination,
-                            on_loaded=on_image_downloaded,
-                            on_failed=on_download_failed)
-        imagenet.download()
-        self.allDownloaded.emit()
-        """
-
     def run(self):
         url2file_name = Url2FileName()
 
@@ -67,7 +43,6 @@ class DownloadManager(QThread):
         for wn_id, urls in image_net_urls:
             if self.download_paused:
                 self.downloadPaused.emit()
-                mutex = QMutex()
                 self.mutex.lock()
                 self.wait_condition.wait(self.mutex)
                 self.mutex.unlock()
@@ -195,19 +170,22 @@ class Worker(QtCore.QObject):
 
             self.downloadFailed.emit(amount, urls)
 
-        self.thread.imageLoaded.connect(handle_loaded)
+        self.thread.imagesLoaded.connect(handle_loaded)
         self.thread.downloadFailed.connect(handle_failed)
+
+        self.thread.downloadPaused.connect(lambda: self.downloadPaused.emit())
+        self.thread.downloadResumed.connect(lambda: self.downloadResumed.emit())
 
         self._running_avg.reset()
         self.thread.start()
 
     @QtCore.pyqtSlot()
     def pause(self):
-        self.downloadPaused.emit()
+        self.thread.pause_download()
 
     @QtCore.pyqtSlot()
     def resume(self):
-        self.downloadResumed.emit()
+        self.thread.resume_download()
 
     @QtCore.pyqtProperty(int)
     def images_downloaded(self):

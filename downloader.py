@@ -194,7 +194,6 @@ class Counter:
 
 class ProductionFactory:
     def new_threading_downloader(self, destination):
-        raise Exception('oopse')
         return ThreadingDownloader(destination)
 
 

@@ -13,15 +13,13 @@ def read_by_lines(file_path):
 # todo: method def offset(wn_id, url)
 # todo: DownloadManager class (start, pause, resume)
 class ImageNetUrls:
-    def __init__(self, batch_size=1000):
+    def __init__(self, batch_size=100):
         if batch_size <= 0:
             raise InvalidBatchError()
 
         self._batch_size = batch_size
 
     def fetch_wordnet_ids(self):
-        raise Exception('Should create instance of ImageNetUrlsMocked, not ImageNetUrls!')
-
         destination = config.wn_ids_path
 
         if self._file_is_missing(destination):
@@ -29,8 +27,6 @@ class ImageNetUrls:
                                 config.word_net_ids_timeout)
 
     def fetch_url_list(self, word_net_id):
-        raise Exception('Should create instance of ImageNetUrlsMocked, not ImageNetUrls!')
-
         destination = config.synset_urls_path(word_net_id)
         if self._file_is_missing(destination):
             url = config.synset_download_url(word_net_id=word_net_id)
@@ -50,7 +46,11 @@ class ImageNetUrls:
             r.raw.decode_content = True
             shutil.copyfileobj(r.raw, f)
 
+    def _create_storage_directory(self):
+        os.makedirs(config.app_data_folder, exist_ok=True)
+
     def __iter__(self):
+        self._create_storage_directory()
         self.fetch_wordnet_ids()
 
         word_net_ids = read_by_lines(config.wn_ids_path)
@@ -78,13 +78,11 @@ class ImageNetUrls:
 
 class ImageNetUrlsMocked(ImageNetUrls):
     def fetch_wordnet_ids(self):
-        os.makedirs(config.app_data_folder, exist_ok=True)
         destination = config.wn_ids_path
         fixture_path = os.path.join('fixtures', 'word_net_ids.txt')
         shutil.copyfile(fixture_path, destination)
 
     def fetch_url_list(self, word_net_id):
-        os.makedirs(config.app_data_folder, exist_ok=True)
         destination = config.synset_urls_path(word_net_id)
         file_name = 'synset_urls_{}.txt'.format(word_net_id)
         fixture_path = os.path.join('fixtures', file_name)
