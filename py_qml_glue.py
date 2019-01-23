@@ -7,10 +7,12 @@ from urllib.parse import urlparse
 
 
 class DownloadManager(QThread):
-    imageLoaded = QtCore.pyqtSignal(list)
+    imagesLoaded = QtCore.pyqtSignal(list)
     downloadFailed = QtCore.pyqtSignal(list)
 
-    all_downloaded = QtCore.pyqtSignal()
+    allDownloaded = QtCore.pyqtSignal()
+
+    downloadPaused = QtCore.pyqtSignal()
 
     def __init__(self, destination, number_of_examples, images_per_category):
         super().__init__()
@@ -26,7 +28,7 @@ class DownloadManager(QThread):
             os.remove(log_path)
 
         def on_image_downloaded(urls):
-            self.imageLoaded.emit(urls)
+            self.imagesLoaded.emit(urls)
 
         def on_download_failed(urls):
             self._log_failures(log_path, urls)
@@ -38,7 +40,11 @@ class DownloadManager(QThread):
                             on_loaded=on_image_downloaded,
                             on_failed=on_download_failed)
         imagenet.download()
-        self.all_downloaded.emit()
+        self.allDownloaded.emit()
+
+    def pause_download(self):
+        #self.
+        self.downloadPaused.emit()
 
     def _log_failures(self, log_path, urls):
         with open(log_path, 'a') as f:

@@ -75,18 +75,16 @@ class DummyValidator:
 class ThreadingDownloader:
     pool = config.pool_executor
 
-    def __init__(self, destination, url2file_name):
+    def __init__(self, destination):
         self._destination = destination
-        self._url2file_name = url2file_name
-
         self.downloaded_urls = []
         self.failed_urls = []
 
-    def download(self, urls):
+    def download(self, urls, file_names):
         self.downloaded_urls = []
         self.failed_urls = []
 
-        args = [(url, self._url2file_name.convert(url)) for url in urls]
+        args = zip(urls, file_names)
         pool = self.pool
         results = list(pool.map(self._download, args))
 
@@ -155,8 +153,7 @@ class ImageNet:
         self._timeout = 2
 
     def download(self):
-        file_name_registry = ItemsRegistry(config.registry_path)
-        url2file_name = Url2FileName(file_name_registry)
+        url2file_name = Url2FileName()
 
         image_net_urls = iterators.create_image_net_urls()
 
@@ -165,11 +162,12 @@ class ImageNet:
         for wn_id, urls in image_net_urls:
             folder_path = self._location.category_path(wn_id)
             threading_downloader = factory.new_threading_downloader(
-                destination=folder_path, url2file_name=url2file_name
+                destination=folder_path
             )
 
             batch = urls[:self.images_per_category]
-            threading_downloader.download(batch)
+            file_names = [url2file_name.convert(url) for url in batch]
+            threading_downloader.download(batch, file_names)
 
             self._on_loaded(threading_downloader.downloaded_urls)
             self._on_failed(threading_downloader.failed_urls)
@@ -255,14 +253,14 @@ class StoppableDownloader(QThread):
 
 
 class ProductionFactory:
-    def new_threading_downloader(self, destination, url2file_name):
+    def new_threading_downloader(self, destination):
         raise Exception('oopse')
-        return ThreadingDownloader(destination, url2file_name)
+        return ThreadingDownloader(destination)
 
 
 class TestFactory:
-    def new_threading_downloader(self, destination, url2file_name):
-        return TestThreadingDownloader(destination, url2file_name)
+    def new_threading_downloader(self, destination):
+        return TestThreadingDownloader(destination)
 
 
 def get_factory():

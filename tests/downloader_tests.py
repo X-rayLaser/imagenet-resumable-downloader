@@ -121,16 +121,16 @@ class FileNameRegistryTests(WithRegistryMixin):
         self.assertNotIn('Second', registry)
 
 
-class Url2FileNameTests(WithRegistryMixin):
+class Url2FileNameTests(unittest.TestCase):
     def test_conversion_of_first_urls(self):
-        url2name = util.Url2FileName(self.registry)
+        url2name = util.Url2FileName()
         first = url2name.convert('http://haha.com/hahahaha.jpg')
         second = url2name.convert('http://example.com/hahahaha.png')
         self.assertEqual(first, '1.jpg')
         self.assertEqual(second, '2.png')
 
     def test_that_urls_with_trailing_newline_are_forbidden(self):
-        url2name = util.Url2FileName(self.registry)
+        url2name = util.Url2FileName()
 
         def f1():
             url2name.convert('http://haha.com/hahahaha.jpg\n')
@@ -146,7 +146,7 @@ class Url2FileNameTests(WithRegistryMixin):
         self.assertEqual(first, '1.jpg')
 
     def test_that_urls_with_trailing_spaces_are_forbidden(self):
-        url2name = util.Url2FileName(self.registry)
+        url2name = util.Url2FileName()
 
         def f():
             url2name.convert('http://haha.com/hahahaha.jpg    \n')
@@ -157,14 +157,14 @@ class Url2FileNameTests(WithRegistryMixin):
         self.assertEqual(first, '1.jpg')
 
     def test_that_conversion_accounts_for_duplicates(self):
-        url2name = util.Url2FileName(self.registry)
+        url2name = util.Url2FileName()
         first = url2name.convert('http://example.com/xyz.jpg')
         second = url2name.convert('http://example.com/xyz.jpg')
         self.assertEqual(first, '1.jpg')
         self.assertEqual(second, '2.jpg')
 
     def test_with_non_ascii_characters_in_url_file_path(self):
-        url2name = util.Url2FileName(self.registry)
+        url2name = util.Url2FileName()
 
         from urllib import parse
         path = parse.quote(' xyz~`!@#$%^&*()_+=-{}[];:\'"\|,.<>/?.jpg')
@@ -174,16 +174,13 @@ class Url2FileNameTests(WithRegistryMixin):
 
         self.assertEqual(first, '1.jpg')
 
-    def test_persistence(self):
-        url2name = util.Url2FileName(self.registry)
-        first = url2name.convert('http://example.com/xyz.jpg')
-        second = url2name.convert('http://example.com/xyz.jpg')
-
-        registry = util.ItemsRegistry(self.file_path)
-        url2name = util.Url2FileName(registry)
-
+    def test_starting_index(self):
+        url2name = util.Url2FileName(starting_index=3)
         third = url2name.convert('http://example.com/third.gif')
+        fourth = url2name.convert('http://example.com/fourth.png')
+
         self.assertEqual(third, '3.gif')
+        self.assertEqual(fourth, '4.png')
 
 
 class ImageNetUrlsTests(unittest.TestCase):
@@ -256,16 +253,17 @@ class ThreadingDownloaderTests(unittest.TestCase):
             shutil.rmtree(self.destination)
         os.makedirs(self.destination)
 
-        file_name_registry = ItemsRegistry(config.registry_path)
-        url2file_name = Url2FileName(file_name_registry)
-
         self.downloader = factory.new_threading_downloader(
-            destination=self.destination, url2file_name=url2file_name
+            destination=self.destination
         )
 
     def test_with_multiple_urls(self):
+        url2file_name = Url2FileName()
+
         urls = ['first url'] * 5
-        self.downloader.download(urls)
+
+        file_names = [url2file_name.convert(url) for url in urls]
+        self.downloader.download(urls, file_names)
 
         file_list = []
         for dirname, dirs, filenames in os.walk(self.destination):
@@ -290,22 +288,24 @@ class DownloadManagerTests(unittest.TestCase):
         self.image_net_home = image_net_home
         self.app = QtWidgets.QApplication(sys.argv)
 
-    def test_all_signals_get_emitted(self):
+    def test_imagesLoaded_gets_emitted(self):
+        self._assert_signal_emitted('imagesLoaded')
+
+    def test_downloadFailed_gets_emitted(self):
+        self._assert_signal_emitted('downloadFailed')
+
+    def test_allDownloaded_gets_emitted(self):
+        self._assert_signal_emitted('allDownloaded')
+
+    def _assert_signal_emitted(self, signal):
         manager = DownloadManager(destination=self.image_net_home,
                                   number_of_examples=5,
                                   images_per_category=10)
-        spies = [QSignalSpy(manager.imageLoaded),
-                 QSignalSpy(manager.downloadFailed),
-                 QSignalSpy(manager.all_downloaded)]
-
-        for spy in spies:
-            self.assertTrue(spy.isValid())
-
+        signal = getattr(manager, signal)
+        spy = QSignalSpy(signal)
         manager.start()
-
-        for spy in spies:
-            received = spy.wait(timeout=500)
-            self.assertTrue(received)
+        received = spy.wait(timeout=500)
+        self.assertTrue(received)
 
     def test_folders_are_created(self):
         manager = DownloadManager(destination=self.image_net_home,
@@ -343,6 +343,19 @@ class DownloadManagerTests(unittest.TestCase):
             files_count += len(file_names)
         self.assertEqual(files_count, 2)
 
+    def test_start_and_pause(self):
+        return
+        manager = DownloadManager(destination=self.image_net_home,
+                                  number_of_examples=5,
+                                  images_per_category=1)
+        paused_spy = QSignalSpy(manager.downloadPaused)
+
+        manager.start()
+        time.sleep(0.25)
+        manager.pause_download()
+        received = paused_spy.wait(timeout=1500)
+        self.assertTrue(received)
+
     def _assert_expected_directories_exist(self):
         word_net_directories = []
         for dirname, dirs, file_names in os.walk(self.image_net_home):
@@ -363,7 +376,7 @@ class DownloadManagerTests(unittest.TestCase):
                 self.assertEqual(s, 'Dummy downloader written file')
 
     def wait_for_completion(self, manager):
-        spy = QSignalSpy(manager.all_downloaded)
+        spy = QSignalSpy(manager.allDownloaded)
         self.assertTrue(spy.isValid())
         manager.start()
 

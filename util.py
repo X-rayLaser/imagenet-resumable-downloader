@@ -42,9 +42,8 @@ class ItemsRegistry:
 
 
 class Url2FileName:
-    def __init__(self, file_name_registry):
-        self._registry = file_name_registry
-        self._index = len(self._registry) + 1
+    def __init__(self, starting_index=1):
+        self._index = starting_index
 
     def convert(self, url):
         if url.rstrip() != url:
@@ -54,9 +53,7 @@ class Url2FileName:
         base_name, extension = os.path.splitext(fname)
 
         converted_name = str(self._index) + extension
-        assert converted_name not in self._registry
 
-        self._registry.add(converted_name)
         self._index += 1
         return converted_name
 
