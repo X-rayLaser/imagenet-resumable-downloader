@@ -1,10 +1,6 @@
 import requests
 import shutil
 import os
-
-
-# todo: download and iterate urls separately
-
 from config import config
 
 
@@ -28,7 +24,7 @@ class ImageNetUrls:
 
         destination = config.wn_ids_path
 
-        if not os.path.isfile(destination):
+        if self._file_is_missing(destination):
             self._download_list(config.synsets_url, destination,
                                 config.word_net_ids_timeout)
 
@@ -36,9 +32,12 @@ class ImageNetUrls:
         raise Exception('Should create instance of ImageNetUrlsMocked, not ImageNetUrls!')
 
         destination = config.synset_urls_path(word_net_id)
-        if not os.path.isfile(destination):
+        if self._file_is_missing(destination):
             url = config.synset_download_url(word_net_id=word_net_id)
             self._download_list(url, destination, config.synsets_timeout)
+
+    def _file_is_missing(self, path):
+        return not os.path.isfile(path)
 
     def _download_list(self, url, destination, timeout):
         print('No file is found. Downloading the list')

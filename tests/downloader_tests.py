@@ -1,6 +1,10 @@
 import unittest
 import os
 import sys
+import time
+
+from PyQt5 import QtWidgets
+from PyQt5.QtTest import QSignalSpy
 
 sys.path.insert(0, './')
 
@@ -277,8 +281,94 @@ class ThreadingDownloaderTests(unittest.TestCase):
 
 
 class DownloadManagerTests(unittest.TestCase):
-    def test_imageLoaded_signal(self):
-        DownloadManager
+    def setUp(self):
+        image_net_home = os.path.join('temp', 'image_net_home')
+        if os.path.exists(image_net_home):
+            shutil.rmtree(image_net_home)
+        os.makedirs(image_net_home)
+
+        self.image_net_home = image_net_home
+        self.app = QtWidgets.QApplication(sys.argv)
+
+    def test_all_signals_get_emitted(self):
+        manager = DownloadManager(destination=self.image_net_home,
+                                  number_of_examples=5,
+                                  images_per_category=10)
+        spies = [QSignalSpy(manager.imageLoaded),
+                 QSignalSpy(manager.downloadFailed),
+                 QSignalSpy(manager.all_downloaded)]
+
+        for spy in spies:
+            self.assertTrue(spy.isValid())
+
+        manager.start()
+
+        for spy in spies:
+            received = spy.wait(timeout=500)
+            self.assertTrue(received)
+
+    def test_folders_are_created(self):
+        manager = DownloadManager(destination=self.image_net_home,
+                                  number_of_examples=5,
+                                  images_per_category=10)
+
+        self.wait_for_completion(manager)
+        self._assert_expected_directories_exist()
+
+    def test_files_are_downloaded(self):
+        manager = DownloadManager(destination=self.image_net_home,
+                                  number_of_examples=5,
+                                  images_per_category=10)
+
+        self.wait_for_completion(manager)
+        self._assert_files_are_correct()
+
+    def test_case_when_requested_number_of_images_is_greater_than_total(self):
+        manager = DownloadManager(destination=self.image_net_home,
+                                  number_of_examples=50,
+                                  images_per_category=100)
+
+        self.wait_for_completion(manager)
+        self._assert_files_are_correct()
+
+    def test_images_per_category_argument(self):
+        manager = DownloadManager(destination=self.image_net_home,
+                                  number_of_examples=5,
+                                  images_per_category=1)
+
+        self.wait_for_completion(manager)
+
+        files_count = 0
+        for dirname, dirs, file_names in os.walk(self.image_net_home):
+            files_count += len(file_names)
+        self.assertEqual(files_count, 2)
+
+    def _assert_expected_directories_exist(self):
+        word_net_directories = []
+        for dirname, dirs, file_names in os.walk(self.image_net_home):
+            word_net_directories.extend(dirs)
+
+        self.assertEqual(word_net_directories, ['n38203', 'n392093'])
+
+    def _assert_files_are_correct(self):
+        file_paths = []
+        for dirname, dirs, file_names in os.walk(self.image_net_home):
+            paths = [os.path.join(dirname, fname)
+                     for fname in file_names]
+            file_paths.extend(paths)
+
+        for path in file_paths:
+            with open(path, 'r') as f:
+                s = f.read()
+                self.assertEqual(s, 'Dummy downloader written file')
+
+    def wait_for_completion(self, manager):
+        spy = QSignalSpy(manager.all_downloaded)
+        self.assertTrue(spy.isValid())
+        manager.start()
+
+        received = spy.wait(timeout=500)
+        self.assertTrue(received)
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import requests
 import shutil
 import os
 from PIL import Image
-from iterators import ImageNetUrls
+import iterators
 from util import ItemsRegistry, Url2FileName
 from config import config
 
@@ -55,8 +55,7 @@ class DummyDownloader:
 
 
 class ImageValidator:
-    @staticmethod
-    def valid_image(path):
+    def valid_image(self, path):
         try:
             Image.open(path)
             return True
@@ -65,10 +64,12 @@ class ImageValidator:
 
 
 class DummyValidator:
-    @staticmethod
-    def valid_image(path):
-        import random
-        return random.random() > 0.5
+    def __init__(self):
+        self._count = 0
+
+    def valid_image(self, path):
+        self._count += 1
+        return self._count % 2
 
 
 class ThreadingDownloader:
@@ -101,9 +102,9 @@ class ThreadingDownloader:
         downloader = self.get_file_downloader(destination=file_path)
         success = downloader.download(image_url)
 
-        Validator = self.get_validator()
+        validator = self.get_validator()
         if success:
-            if Validator.valid_image(file_path):
+            if validator.valid_image(file_path):
                 return True
             else:
                 os.remove(file_path)
@@ -115,7 +116,7 @@ class ThreadingDownloader:
         return FileDownloader(destination=destination)
 
     def get_validator(self):
-        return ImageValidator
+        return ImageValidator()
 
 
 class TestThreadingDownloader(ThreadingDownloader):
@@ -123,7 +124,7 @@ class TestThreadingDownloader(ThreadingDownloader):
         return DummyDownloader(destination=destination)
 
     def get_validator(self):
-        return DummyValidator
+        return DummyValidator()
 
 
 class DownloadLocation:
@@ -141,10 +142,6 @@ class DownloadLocation:
 
 
 class ImageNet:
-    @staticmethod
-    def wnid2synset(wn_id):
-        return Synset(wn_id=wn_id)
-
     def __init__(self, number_of_examples, images_per_category,
                  destination, on_loaded, on_failed):
         self.number_of_examples = number_of_examples
@@ -156,14 +153,12 @@ class ImageNet:
         self._on_loaded = on_loaded
         self._on_failed = on_failed
         self._timeout = 2
-        self._wordnet_list = WordNetIdList(config.wn_ids_path)
 
     def download(self):
         file_name_registry = ItemsRegistry(config.registry_path)
         url2file_name = Url2FileName(file_name_registry)
 
-        image_net_urls = ImageNetUrls(word_net_ids=self._wordnet_list,
-                                      wnid2synset=self.wnid2synset)
+        image_net_urls = iterators.create_image_net_urls()
 
         factory = get_factory()
 
