@@ -2,7 +2,7 @@ import requests
 import shutil
 import os
 from PIL import Image
-from iterators import WordNetIdList, Synset, ImageNetUrls
+from iterators import ImageNetUrls
 from util import ItemsRegistry, Url2FileName
 from config import config
 

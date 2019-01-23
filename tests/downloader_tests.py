@@ -6,7 +6,6 @@ sys.path.insert(0, './')
 
 import iterators
 import util
-from iterators import WordNetIdList, Synset
 from util import ItemsRegistry
 from config import config
 import shutil
@@ -15,29 +14,15 @@ from downloader import Url2FileName
 from py_qml_glue import DownloadManager
 
 
-class WordNetIdListTests(unittest.TestCase):
-    def test_word_net_id_has_no_trailing_newline_character(self):
-        wordnet_ids_list = WordNetIdList('tests/wordnet_ids_fixture.txt')
-        for wn_id in wordnet_ids_list:
-            self.assertFalse('\n' in wn_id, 'Contains "\n" character')
-
-    def test_that_iterator_outputs_expected_wn_id_values(self):
-        wordnet_ids_list = WordNetIdList('tests/wordnet_ids_fixture.txt')
-        ids = [wn_id for wn_id in wordnet_ids_list]
-
-        self.assertEqual(ids[0], 'n02119789')
-        self.assertEqual(ids[1], 'n02478875')
-
-
-class SynsetTests(unittest.TestCase):
+class ReadByLinesTests(unittest.TestCase):
     def test_url_has_no_trailing_newline_character(self):
-        synset = Synset(wn_id='wn_id_fixture')
-        for url in synset:
+        path = os.path.join('fixtures', 'dummy_synset.txt')
+        for url in iterators.read_by_lines(path):
             self.assertFalse('\n' in url, 'Contains "\n" character')
 
     def test_that_iterator_outputs_expected_urls(self):
-        synset = Synset(wn_id='wn_id_fixture')
-        urls = [url for url in synset]
+        path = os.path.join('fixtures', 'dummy_synset.txt')
+        urls = [url for url in iterators.read_by_lines(path)]
         self.assertEqual(urls[0], 'http://some_domain.com/something')
         self.assertEqual(urls[1], 'http://another-domain.com/1234%329jflija')
         self.assertEqual(urls[2], 'http://another-domain.com/x/y/z')
@@ -198,20 +183,12 @@ class Url2FileNameTests(WithRegistryMixin):
 
 
 class ImageNetUrlsTests(unittest.TestCase):
-    word_net_ids = ['n392093', 'n38203']
-
-    synsets = {
-        'n392093': ['url1', 'url2', 'url3', ''],
-        'n8323': ['', '\n'],
-        'n38203': ['url4', ' \n ', 'url5']
-    }
+    def tearDown(self):
+        if os.path.exists(config.app_data_folder):
+            shutil.rmtree(config.app_data_folder)
 
     def test_getting_all_urls(self):
-        def wnid2synset(wn_id):
-            return self.synsets[wn_id]
-
-        it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                    batch_size=2)
+        it = iterators.create_image_net_urls(batch_size=2)
         results = []
         for pair in it:
             results.append(pair)
@@ -224,11 +201,7 @@ class ImageNetUrlsTests(unittest.TestCase):
         self.assertEqual(results, expected_pairs)
 
     def test_with_1_pair_batch(self):
-        def wnid2synset(wn_id):
-            return self.synsets[wn_id]
-
-        it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                    batch_size=1)
+        it = iterators.create_image_net_urls(batch_size=1)
         results = []
         for pair in it:
             results.append(pair)
@@ -243,10 +216,7 @@ class ImageNetUrlsTests(unittest.TestCase):
         self.assertEqual(results, expected_pairs)
 
     def test_with_default_batch_size(self):
-        def wnid2synset(wn_id):
-            return self.synsets[wn_id]
-
-        it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset)
+        it = iterators.create_image_net_urls()
         results = []
         for pair in it:
             results.append(pair)
@@ -258,38 +228,17 @@ class ImageNetUrlsTests(unittest.TestCase):
         self.assertEqual(results, expected_pairs)
 
     def test_with_zero_batch_size(self):
-        def wnid2synset(wn_id):
-            return self.synsets[wn_id]
-
         def f():
-            it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                        batch_size=0)
+            it = iterators.create_image_net_urls(batch_size=0)
 
         self.assertRaises(iterators.InvalidBatchError, f)
 
     def test_with_negative_batch_size(self):
-        def wnid2synset(wn_id):
-            return self.synsets[wn_id]
 
         def f():
-            it = iterators.ImageNetUrls(self.word_net_ids, wnid2synset,
-                                        batch_size=-1)
+            it = iterators.create_image_net_urls(batch_size=-1)
 
         self.assertRaises(iterators.InvalidBatchError, f)
-
-    def test_with_single_synset(self):
-        word_net_ids = ['faliefj']
-
-        def wnid2synset(wn_id):
-            return ['url1']
-
-        it = iterators.ImageNetUrls(word_net_ids, wnid2synset)
-        results = []
-        for pair in it:
-            results.append(pair)
-
-        expected_pairs = [('faliefj', ['url1'])]
-        self.assertEqual(results, expected_pairs)
 
 
 class ThreadingDownloaderTests(unittest.TestCase):
