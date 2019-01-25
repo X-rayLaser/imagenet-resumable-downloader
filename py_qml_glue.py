@@ -40,7 +40,7 @@ class DownloadManager(QThread):
         factory = downloader.get_factory()
         self.downloaded = 0
 
-        for wn_id, urls in image_net_urls:
+        for wn_id, urls, pos in image_net_urls:
             if self.download_paused:
                 self.downloadPaused.emit()
                 self.mutex.lock()

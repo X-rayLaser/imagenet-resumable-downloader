@@ -13,7 +13,7 @@ import util
 from config import config
 import shutil
 import downloader
-from downloader import Url2FileName
+from downloader import Url2FileName, StatefulDownloader, DownloadConfiguration
 from py_qml_glue import DownloadManager
 
 
@@ -99,57 +99,53 @@ class ImageNetUrlsTests(unittest.TestCase):
             shutil.rmtree(config.app_data_folder)
 
     def test_getting_all_urls(self):
-        it = iterators.create_image_net_urls(batch_size=2)
-        results = []
-        for pair in it:
-            results.append(pair)
-
-        expected_pairs = [
-            ('n392093', ['url1', 'url2']),
-            ('n392093', ['url3']),
-            ('n38203', ['url4', 'url5'])
-        ]
-        self.assertEqual(results, expected_pairs)
-
-    def test_with_1_pair_batch(self):
-        it = iterators.create_image_net_urls(batch_size=1)
-        results = []
-        for pair in it:
-            results.append(pair)
-
-        expected_pairs = [
-            ('n392093', ['url1']),
-            ('n392093', ['url2']),
-            ('n392093', ['url3']),
-            ('n38203', ['url4']),
-            ('n38203', ['url5'])
-        ]
-        self.assertEqual(results, expected_pairs)
-
-    def test_with_default_batch_size(self):
         it = iterators.create_image_net_urls()
         results = []
-        for pair in it:
-            results.append(pair)
+        positions = []
+        for wn_id, url, pos in it:
+            results.append((wn_id, url))
+            positions.append(pos.to_json())
 
         expected_pairs = [
-            ('n392093', ['url1', 'url2', 'url3']),
-            ('n38203', ['url4', 'url5'])
+            ('n392093', 'url1'), ('n392093', 'url2'),
+            ('n392093', 'url3'),
+            ('n38203', 'url4'), ('n38203', 'url5')
         ]
         self.assertEqual(results, expected_pairs)
 
-    def test_with_zero_batch_size(self):
-        def f():
-            it = iterators.create_image_net_urls(batch_size=0)
+        expected_positions = [
+            iterators.Position(0, 0).to_json(),
+            iterators.Position(0, 1).to_json(),
+            iterators.Position(0, 2).to_json(),
+            iterators.Position(1, 0).to_json(),
+            iterators.Position(1, 1).to_json()
+        ]
 
-        self.assertRaises(iterators.InvalidBatchError, f)
+        self.assertEqual(positions, expected_positions)
 
-    def test_with_negative_batch_size(self):
+    def test_iterate_from_initial_index(self):
+        position = iterators.Position(0, 1)
+        it = iterators.create_image_net_urls(start_after_position=position)
 
-        def f():
-            it = iterators.create_image_net_urls(batch_size=-1)
+        results = []
+        positions = []
+        for wn_id, url, pos in it:
+            results.append((wn_id, url))
+            positions.append(pos.to_json())
 
-        self.assertRaises(iterators.InvalidBatchError, f)
+        expected_pairs = [
+            ('n392093', 'url3'),
+            ('n38203', 'url4'), ('n38203', 'url5')
+        ]
+        self.assertEqual(results, expected_pairs)
+
+        expected_positions = [
+            iterators.Position(0, 2).to_json(),
+            iterators.Position(1, 0).to_json(),
+            iterators.Position(1, 1).to_json()
+        ]
+
+        self.assertEqual(positions, expected_positions)
 
 
 class ThreadingDownloaderTests(unittest.TestCase):
@@ -186,6 +182,212 @@ class ThreadingDownloaderTests(unittest.TestCase):
         for path in file_list:
             with open(path, 'r') as f:
                 self.assertEqual(f.read(), 'Dummy downloader written file')
+
+
+class BatchDownloadTests(unittest.TestCase):
+    def setUp(self):
+        self.dataset_location = os.path.join('temp', 'imagenet')
+        if os.path.exists(self.dataset_location):
+            shutil.rmtree(self.dataset_location)
+        os.makedirs(self.dataset_location, exist_ok=True)
+
+    def test_flush_creates_directories(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                return [], urls
+
+        d = BatchDownloadMocked(self.dataset_location)
+
+        for wn_id, url in [('wn1', 'url1'), ('wn2', 'url2'), ('wn2', 'x')]:
+            d.add(wn_id, url)
+
+        d.flush()
+
+        dirs = []
+        for dirname, dir_names, file_names in os.walk(self.dataset_location):
+            dirs.extend(dir_names)
+
+        self.assertEqual(dirs, ['wn1', 'wn2'])
+
+    def test_flush_invokes_callback_correctly(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                failed_urls = ['url1', 'url3']
+                succeeded_urls = ['url2']
+                return failed_urls, succeeded_urls
+        d = BatchDownloadMocked(self.dataset_location)
+
+        failed = []
+        downloaded = []
+        def f(failed_urls, downloaded_urls):
+            failed.extend(failed_urls)
+            downloaded.extend(downloaded_urls)
+
+        d.on_fetched = f
+
+        for wn_id, url in [('wn1', 'url1'), ('wn1', 'url2'), ('wn3', 'url3')]:
+            d.add(wn_id, url)
+
+        d.flush()
+
+        self.assertEqual(failed, ['url1', 'url3'])
+        self.assertEqual(downloaded, ['url2'])
+
+    def test_flush_removes_elements_in_buffer(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                failed_urls = urls
+                succeeded_urls = []
+                return failed_urls, succeeded_urls
+
+        d = BatchDownloadMocked(self.dataset_location, batch_size=2)
+
+        failed = []
+        downloaded = []
+
+        def f(failed_urls, downloaded_urls):
+            failed[:] = []
+            downloaded[:] = []
+            failed.extend(failed_urls)
+            downloaded.extend(downloaded_urls)
+
+        d.on_fetched = f
+
+        d.add('wn1', 'url1')
+        d.add('wn2', 'url2')
+        d.add('wn3', 'url3')
+
+        d.flush()
+        d.flush()
+
+        self.assertEqual(failed, [])
+        self.assertEqual(downloaded, [])
+
+    def test_add_invokes_callback_when_batch_is_ready(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                failed_urls = [urls[0]]
+                succeeded_urls = [urls[1]]
+                return failed_urls, succeeded_urls
+        d = BatchDownloadMocked(self.dataset_location, batch_size=2)
+
+        failed = []
+        downloaded = []
+        def f(failed_urls, downloaded_urls):
+            failed.extend(failed_urls)
+            downloaded.extend(downloaded_urls)
+
+        d.on_fetched = f
+
+        d.add('wn1', 'url1')
+        self.assertEqual(failed, [])
+        self.assertEqual(downloaded, [])
+
+        d.add('wn1', 'url2')
+        self.assertEqual(failed, ['url1'])
+        self.assertEqual(downloaded, ['url2'])
+
+    def test_notifies_after_getting_specified_number_of_images(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                failed_urls = [urls[0]]
+                succeeded_urls = [urls[1]]
+                return failed_urls, succeeded_urls
+        d = BatchDownloadMocked(self.dataset_location, number_of_images=2, batch_size=2)
+
+        called = False
+
+        def f():
+            nonlocal called
+            called = True
+
+        d.on_complete = f
+
+        d.add('wn1', 'url1')
+        d.add('wn2', 'url3')
+
+        self.assertFalse(called)
+
+        d.add('wn1', 'url42')
+        d.add('wn5', 'url2')
+        self.assertTrue(called)
+
+    def test_notifies_after_getting_more_images_than_was_requested(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                return [], urls
+
+        d = BatchDownloadMocked(self.dataset_location, number_of_images=3, batch_size=2)
+
+        called = False
+
+        def f():
+            nonlocal called
+            called = True
+
+        d.on_complete = f
+
+        d.add('wn1', 'url1')
+        d.add('wn2', 'url3')
+
+        self.assertFalse(called)
+
+        d.add('wn1', 'url42')
+        d.add('wn5', 'url2')
+        self.assertTrue(called)
+
+    def test_that_images_per_category_parameter_works_correctly(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                return [], urls
+
+        downloaded = []
+
+        def f(failed_urls, downloaded_urls):
+            downloaded.extend(downloaded_urls)
+
+        d = BatchDownloadMocked(self.dataset_location, images_per_category=2, batch_size=3)
+        d.on_fetched = f
+
+        d.add('n123', 'url1')
+        d.add('n999', 'url2')
+        d.add('n123', 'url3')
+        d.add('n123', 'url4')
+        d.add('n999', 'url5')
+        d.add('n555', 'url6')
+        d.add('n555', 'url7')
+
+        self.assertEqual(downloaded, ['url1', 'url2', 'url3', 'url5', 'url6', 'url7'])
+
+    def test_with_both_limiting_parameters(self):
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                return [], urls
+
+        d = BatchDownloadMocked(self.dataset_location, number_of_images=7,
+                                images_per_category=2, batch_size=2)
+
+        called = False
+
+        def f():
+            nonlocal called
+            called = True
+        d.on_complete = f
+
+        d.add('n1', 'url1')
+        d.add('n1', 'url2')
+        d.add('n1', 'url3')
+        d.add('n2', 'url4')
+        d.add('n3', 'url5')
+        d.add('n3', 'url6')
+        d.add('n3', 'url7')
+        d.add('n3', 'url8')
+        d.add('n4', 'url9')
+
+        self.assertFalse(called)
+        d.add('n5', 'url10')
+
+        self.assertTrue(called)
 
 
 class DownloadManagerTests(unittest.TestCase):
@@ -302,6 +504,162 @@ class DownloadManagerTests(unittest.TestCase):
 
         received = spy.wait(timeout=500)
         self.assertTrue(received)
+
+
+class StatefulDownloaderTests(unittest.TestCase):
+    def setUp(self):
+        path = config.download_state_path
+        if os.path.isfile(path):
+            os.remove(path)
+
+        image_net_home = os.path.join('temp', 'image_net_home')
+        if os.path.exists(image_net_home):
+            shutil.rmtree(image_net_home)
+        os.makedirs(image_net_home)
+        self.image_net_home = image_net_home
+
+    def test_loading_first_example(self):
+        downloader = StatefulDownloader()
+
+        dconf = DownloadConfiguration(number_of_images=10,
+                                      images_per_category=10,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        res = None
+        for result in downloader:
+            res = result
+            break
+
+        self.assertEqual(res.failed_urls, [])
+        self.assertEqual(res.succeeded_urls, ['url1', 'url2', 'url3'])
+        self.assertEqual(res.failures_count, 0)
+        self.assertEqual(res.successes_count, 3)
+        self.assertFalse(downloader.finished)
+
+    def test_complete_download_from_scratch(self):
+        downloader = StatefulDownloader()
+
+        dconf = DownloadConfiguration(number_of_images=10,
+                                      images_per_category=10,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        results = []
+        failed_urls = []
+        successful_urls = []
+        for result in downloader:
+            results.append(result)
+            failed_urls.extend(result.failed_urls)
+            successful_urls.extend(result.succeeded_urls)
+
+        self.assertEqual(failed_urls, [])
+        self.assertEqual(successful_urls, ['url1', 'url2', 'url3', 'url4', 'url5'])
+
+        self.assertEqual(downloader.total_downloaded, 5)
+        self.assertEqual(downloader.total_failed, 0)
+
+        self.assertTrue(downloader.finished)
+
+    def test_without_configuring(self):
+        def f():
+            d = StatefulDownloader()
+
+            for result in d:
+                pass
+
+        self.assertRaises(downloader.NotConfiguredError, f)
+
+    def test_data_persistence(self):
+        downloader = StatefulDownloader()
+
+        dconf = DownloadConfiguration(number_of_images=10,
+                                      images_per_category=12,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        res = None
+        for result in downloader:
+            res = result
+            break
+
+        downloader = StatefulDownloader()
+
+        self.assertEqual(downloader.configuration.number_of_images, 10)
+        self.assertEqual(downloader.configuration.images_per_category, 12)
+        self.assertEqual(downloader.configuration.download_destination,
+                         self.image_net_home)
+
+        self.assertEqual(downloader.last_result.failed_urls,
+                         res.failed_urls)
+        self.assertEqual(downloader.last_result.succeeded_urls,
+                         res.succeeded_urls)
+
+        self.assertEqual(downloader.total_failed, 0)
+        self.assertEqual(downloader.total_downloaded, 3)
+        self.assertFalse(downloader.finished)
+
+        for result in downloader:
+            pass
+
+        downloader = StatefulDownloader()
+        self.assertTrue(downloader.finished)
+
+    def test_with_corrupted_json_file(self):
+        path = config.download_state_path
+        with open(path, 'w') as f:
+            f.write('[238jf0[{9f0923j]jf{{{')
+        d = StatefulDownloader()
+        self.assertFalse(d.finished)
+
+        def f():
+            for res in d:
+                pass
+
+        self.assertRaises(downloader.NotConfiguredError, f)
+
+    def test_with_missing_fields_in_json_file(self):
+        path = config.download_state_path
+        import json
+        with open(path, 'w') as f:
+            f.write(json.dumps({'number_of_images': 15}))
+        d = StatefulDownloader()
+        self.assertFalse(d.finished)
+
+        def f():
+            for res in d:
+                pass
+
+        self.assertRaises(downloader.NotConfiguredError, f)
+
+
+    def test_stopping_and_resuming_with_new_instance(self):
+        downloader = StatefulDownloader()
+
+        dconf = DownloadConfiguration(number_of_images=10,
+                                      images_per_category=12,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        for result in downloader:
+            break
+
+        downloader = StatefulDownloader()
+
+        failed_urls = []
+        successful_urls = []
+        for result in downloader:
+            failed_urls.extend(result.failed_urls)
+            successful_urls.extend(result.succeeded_urls)
+            break
+
+        self.assertEqual(failed_urls, [])
+        self.assertEqual(successful_urls, ['url4', 'url5'])
+
+        self.assertEqual(downloader.total_downloaded, 5)
+        self.assertEqual(downloader.total_failed, 0)
+
+        self.assertTrue(downloader.finished)
 
 
 if __name__ == '__main__':

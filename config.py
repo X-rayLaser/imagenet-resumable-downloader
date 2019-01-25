@@ -15,6 +15,9 @@ class Config:
         self.registry_path = os.path.join(self.app_data_folder,
                                           'file-name-registry.json')
 
+        self.download_state_path = os.path.join(self.app_data_folder,
+                                                'download_state.json')
+
         self.synsets_url = (
             'http://www.image-net.org/api/text/imagenet.synset.obtain_synset_list'
         )
