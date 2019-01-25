@@ -539,25 +539,6 @@ class StatefulDownloaderTests(unittest.TestCase):
         os.makedirs(image_net_home)
         self.image_net_home = image_net_home
 
-    def test_loading_first_example(self):
-        downloader = StatefulDownloader()
-
-        dconf = DownloadConfiguration(number_of_images=10,
-                                      images_per_category=10,
-                                      download_destination=self.image_net_home)
-        downloader.configure(dconf)
-
-        res = None
-        for result in downloader:
-            res = result
-            break
-
-        self.assertEqual(res.failed_urls, [])
-        self.assertEqual(res.succeeded_urls, ['url1', 'url2', 'url3'])
-        self.assertEqual(res.failures_count, 0)
-        self.assertEqual(res.successes_count, 3)
-        self.assertFalse(downloader.finished)
-
     def test_complete_download_from_scratch(self):
         downloader = StatefulDownloader()
 
@@ -596,7 +577,8 @@ class StatefulDownloaderTests(unittest.TestCase):
 
         dconf = DownloadConfiguration(number_of_images=10,
                                       images_per_category=12,
-                                      download_destination=self.image_net_home)
+                                      download_destination=self.image_net_home,
+                                      batch_size=3)
         downloader.configure(dconf)
 
         res = None
@@ -653,12 +635,12 @@ class StatefulDownloaderTests(unittest.TestCase):
 
         self.assertRaises(downloader.NotConfiguredError, f)
 
-
     def test_stopping_and_resuming_with_new_instance(self):
         downloader = StatefulDownloader()
 
         dconf = DownloadConfiguration(number_of_images=10,
                                       images_per_category=12,
+                                      batch_size=3,
                                       download_destination=self.image_net_home)
         downloader.configure(dconf)
 

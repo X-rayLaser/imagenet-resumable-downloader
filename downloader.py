@@ -180,10 +180,12 @@ class ImageNet:
 class DownloadConfiguration:
     def __init__(self, number_of_images,
                  images_per_category,
-                 download_destination):
+                 download_destination,
+                 batch_size=100):
         self.number_of_images = number_of_images
         self.images_per_category = images_per_category
         self.download_destination = download_destination
+        self.batch_size = batch_size
 
 
 class Result:
@@ -198,36 +200,6 @@ class Result:
     @property
     def successes_count(self):
         return len(self.succeeded_urls)
-
-
-class PendingDownloadsBuffer:
-    def __init__(self, batch_size):
-        self._batch_size = batch_size
-
-    def add(self):
-        pass
-
-    def prepare_batch(self):
-        return [], []
-
-    def is_full(self):
-        return True
-
-
-class CategoryCounter:
-    def __init__(self, elememts_limit):
-        self._elememts_limit = elememts_limit
-        self._category_counts = {}
-
-    def add(self, wn_id, url):
-        if wn_id not in self._category_counts:
-            self._category_counts[wn_id] = 0
-        self._category_counts[wn_id] += 1
-
-    def reached_limit(self, wn_id):
-        if wn_id not in self._category_counts:
-            return False
-        return self._category_counts[wn_id] >= self._elememts_limit
 
 
 class BatchDownload:
@@ -246,6 +218,8 @@ class BatchDownload:
         self._url2file_name = Url2FileName(starting_index=starting_index)
 
         self._category_counts = {}
+
+        self._threading_downloader = get_factory().new_threading_downloader()
 
     def flush(self):
         url_to_wn_id = {}
@@ -284,7 +258,10 @@ class BatchDownload:
         self._pending[:] = []
 
     def do_download(self, urls, destinations):
-        pass
+        self._threading_downloader.download(urls, destinations)
+        failed_urls = self._threading_downloader.failed_urls
+        succeeded_urls = self._threading_downloader.downloaded_urls
+        return failed_urls, succeeded_urls
 
     def add(self, wn_id, url):
         if wn_id not in self._category_counts:
@@ -301,12 +278,14 @@ class StatefulDownloader:
         self.destination = None
         self.number_of_images = 0
         self.images_per_category = 0
+        self.batch_size = 100
         self.total_downloaded = 0
         self.total_failed = 0
 
         self._configured = False
         self.finished = False
         self._last_result = None
+        self._last_position = iterators.Position(-1, -1)
 
         try:
             self._restore_from_file()
@@ -331,61 +310,62 @@ class StatefulDownloader:
 
             failed_urls = d['failed_urls']
             succeeded_urls = d['succeeded_urls']
+
+            self._last_position = iterators.Position.from_json(d['position'])
             self._last_result = Result(failed_urls, succeeded_urls)
 
     def __iter__(self):
         if not self._configured:
             raise NotConfiguredError()
 
-        self._location = DownloadLocation(self.destination)
+        image_net_urls = iterators.create_image_net_urls(
+            start_after_position=self._last_position
+        )
 
-        url2file_name = Url2FileName()
+        images_left = self.number_of_images - self.total_downloaded
 
-        image_net_urls = iterators.create_image_net_urls()
+        batch_download = BatchDownload(dataset_root=self.destination,
+                                       number_of_images=images_left,
+                                       images_per_category=self.images_per_category,
+                                       batch_size=self.batch_size,
+                                       starting_index=1)
 
-        factory = get_factory()
+        result_arrived = False
 
-        buffer = PendingDownloadsBuffer(batch_size=100)
-        counter = CategoryCounter(self.images_per_category)
+        def fetch_handler(failed_urls, succeeded_urls):
+            nonlocal result_arrived
+            self.total_failed += len(failed_urls)
+            self.total_downloaded += len(succeeded_urls)
 
-        threading_downloader = factory.new_threading_downloader()
+            self._last_result = Result(
+                failed_urls=failed_urls,
+                succeeded_urls=succeeded_urls
+            )
+
+            self.save()
+            result_arrived = True
+
+        def complete_handler():
+            self.finished = True
+
+        batch_download.on_fetched = fetch_handler
+        batch_download.on_complete = complete_handler
 
         for wn_id, url, position in image_net_urls:
-            if counter.reached_limit(wn_id):
-                continue
+            batch_download.add(wn_id, url)
 
-            buffer.add()
-            if buffer.is_full():
-                batch = buffer.prepare_batch()
-
-                url_to_wnid = {}
-                for word_net_id, url in batch:
-                    url_to_wnid[url] = word_net_id
-
-
-
-                threading_downloader.download(urls, file_names)
-
-                self.total_failed += len(threading_downloader.failed_urls)
-                self.total_downloaded += len(threading_downloader.downloaded_urls)
-
-                for url in threading_downloader.downloaded_urls:
-                    counter.add(url_to_wnid[url], url)
-
-                self._last_result = Result(
-                    failed_urls=threading_downloader.failed_urls,
-                    succeeded_urls=threading_downloader.downloaded_urls
-                )
-
-                self.save()
+            if result_arrived:
                 yield self._last_result
+                result_arrived = False
 
-            #folder_path = self._location.category_path(wn_id)
+            self._last_position = position
+            #self.save()
 
-            #file_names = [url2file_name.convert(url) for url in batch]
-
+        batch_download.flush()
         self.finished = True
         self.save()
+        if result_arrived:
+            yield self._last_result
 
     def save(self):
         failed_urls = self.last_result.failed_urls
@@ -400,7 +380,8 @@ class StatefulDownloader:
             'configured': self._configured,
             'finished': self.finished,
             'failed_urls': failed_urls,
-            'succeeded_urls': succeeded_urls
+            'succeeded_urls': succeeded_urls,
+            'position': self._last_position.to_json()
         }
 
         path = config.download_state_path
@@ -411,6 +392,7 @@ class StatefulDownloader:
         self.destination = conf.download_destination
         self.number_of_images = conf.number_of_images
         self.images_per_category = conf.images_per_category
+        self.batch_size = conf.batch_size
         self._configured = True
 
     @property
