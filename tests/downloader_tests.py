@@ -159,9 +159,7 @@ class ThreadingDownloaderTests(unittest.TestCase):
             shutil.rmtree(self.destination)
         os.makedirs(self.destination)
 
-        self.downloader = factory.new_threading_downloader(
-            destination=self.destination
-        )
+        self.downloader = factory.new_threading_downloader()
 
     def test_with_multiple_urls(self):
         url2file_name = Url2FileName()
@@ -169,7 +167,9 @@ class ThreadingDownloaderTests(unittest.TestCase):
         urls = ['first url'] * 5
 
         file_names = [url2file_name.convert(url) for url in urls]
-        self.downloader.download(urls, file_names)
+        destinations = [os.path.join(self.destination, fname)
+                        for fname in file_names]
+        self.downloader.download(urls, destinations)
 
         file_list = []
         for dirname, dirs, filenames in os.walk(self.destination):
@@ -219,6 +219,7 @@ class BatchDownloadTests(unittest.TestCase):
 
         failed = []
         downloaded = []
+
         def f(failed_urls, downloaded_urls):
             failed.extend(failed_urls)
             downloaded.extend(downloaded_urls)
@@ -273,6 +274,7 @@ class BatchDownloadTests(unittest.TestCase):
 
         failed = []
         downloaded = []
+
         def f(failed_urls, downloaded_urls):
             failed.extend(failed_urls)
             downloaded.extend(downloaded_urls)
@@ -388,6 +390,25 @@ class BatchDownloadTests(unittest.TestCase):
         d.add('n5', 'url10')
 
         self.assertTrue(called)
+
+    def test_destination_paths(self):
+        paths = []
+
+        class BatchDownloadMocked(downloader.BatchDownload):
+            def do_download(self, urls, destinations):
+                paths.extend(destinations)
+                return [], urls
+
+        d = BatchDownloadMocked(self.dataset_location, batch_size=3)
+
+        d.add('dogs', 'url1.jpg')
+        d.add('cats', 'url2.png')
+        d.add('dogs', 'url2.gif')
+
+        first = os.path.join(self.dataset_location, 'dogs', '1.jpg')
+        second = os.path.join(self.dataset_location, 'cats', '2.png')
+        third = os.path.join(self.dataset_location, 'dogs', '3.gif')
+        self.assertEqual(paths, [first, second, third])
 
 
 class DownloadManagerTests(unittest.TestCase):

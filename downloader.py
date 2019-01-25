@@ -76,16 +76,15 @@ class DummyValidator:
 class ThreadingDownloader:
     pool = config.pool_executor
 
-    def __init__(self, destination):
-        self._destination = destination
+    def __init__(self):
         self.downloaded_urls = []
         self.failed_urls = []
 
-    def download(self, urls, file_names):
+    def download(self, urls, destinations):
         self.downloaded_urls = []
         self.failed_urls = []
 
-        args = zip(urls, file_names)
+        args = zip(urls, destinations)
         pool = self.pool
         results = list(pool.map(self._download, args))
 
@@ -96,8 +95,7 @@ class ThreadingDownloader:
                 self.failed_urls.append(url)
 
     def _download(self, args):
-        image_url, file_name = args
-        file_path = os.path.join(self._destination, file_name)
+        image_url, file_path = args
         downloader = self.get_file_downloader(destination=file_path)
         success = downloader.download(image_url)
 
@@ -233,7 +231,8 @@ class CategoryCounter:
 
 
 class BatchDownload:
-    def __init__(self, dataset_root, number_of_images=100, images_per_category=100, batch_size=100):
+    def __init__(self, dataset_root, number_of_images=100,
+                 images_per_category=100, batch_size=100, starting_index=1):
         self.on_fetched = lambda failed, succeeded : None
         self.on_complete = lambda: None
 
@@ -244,13 +243,20 @@ class BatchDownload:
         self._images_per_category = images_per_category
         self._total_downloaded = 0
 
+        self._url2file_name = Url2FileName(starting_index=starting_index)
+
         self._category_counts = {}
 
     def flush(self):
         url_to_wn_id = {}
 
+        paths = []
         for wn_id, url in self._pending:
             folder_path = self._location.category_path(wn_id)
+            file_name = self._url2file_name.convert(url)
+
+            path = os.path.join(folder_path, file_name)
+            paths.append(path)
 
             if wn_id not in url_to_wn_id:
                 if url not in url_to_wn_id:
@@ -258,7 +264,9 @@ class BatchDownload:
                 url_to_wn_id[url].append(wn_id)
 
         urls = [url for _, url in self._pending]
-        failed_urls, succeeded_urls = self.do_download(urls, [])
+
+        failed_urls, succeeded_urls = self.do_download(urls, paths)
+
         self.on_fetched(failed_urls, succeeded_urls)
 
         self._clear_buffer()
@@ -433,13 +441,13 @@ class Counter:
 
 
 class ProductionFactory:
-    def new_threading_downloader(self, destination):
-        return ThreadingDownloader(destination)
+    def new_threading_downloader(self):
+        return ThreadingDownloader()
 
 
 class TestFactory:
-    def new_threading_downloader(self, destination):
-        return TestThreadingDownloader(destination)
+    def new_threading_downloader(self):
+        return TestThreadingDownloader()
 
 
 def get_factory():
