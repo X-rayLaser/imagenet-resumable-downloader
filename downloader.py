@@ -303,6 +303,7 @@ class StatefulDownloader:
             self.destination = d['destination']
             self.number_of_images = d['number_of_images']
             self.images_per_category = d['images_per_category']
+            self.batch_size = d['batch_size']
             self.total_downloaded = d['total_downloaded']
             self.total_failed = d['total_failed']
             self._configured = d['configured']
@@ -375,6 +376,7 @@ class StatefulDownloader:
             'destination': self.destination,
             'number_of_images': self.number_of_images,
             'images_per_category': self.images_per_category,
+            'batch_size': self.batch_size,
             'total_downloaded': self.total_downloaded,
             'total_failed': self.total_failed,
             'configured': self._configured,
@@ -400,7 +402,8 @@ class StatefulDownloader:
         return DownloadConfiguration(
             number_of_images=self.number_of_images,
             images_per_category=self.images_per_category,
-            download_destination=self.destination
+            download_destination=self.destination,
+            batch_size=self.batch_size
         )
 
     @property

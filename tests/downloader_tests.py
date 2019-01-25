@@ -590,6 +590,7 @@ class StatefulDownloaderTests(unittest.TestCase):
 
         self.assertEqual(downloader.configuration.number_of_images, 10)
         self.assertEqual(downloader.configuration.images_per_category, 12)
+        self.assertEqual(downloader.configuration.batch_size, 3)
         self.assertEqual(downloader.configuration.download_destination,
                          self.image_net_home)
 
