@@ -12,6 +12,10 @@ def read_by_lines(file_path):
 
 
 class Position:
+    @staticmethod
+    def null_position():
+        return Position(-1, -1)
+
     def __init__(self, word_id_offset, url_offset):
         self.word_id_offset = word_id_offset
         self.url_offset = url_offset
@@ -55,7 +59,7 @@ class Position:
 class ImageNetUrls:
     def __init__(self, start_after_position=None):
         if start_after_position is None:
-            self._start_after_position = Position(-1, -1)
+            self._start_after_position = Position.null_position()
         else:
             self._start_after_position = start_after_position
 

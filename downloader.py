@@ -221,38 +221,55 @@ class BatchDownload:
 
         self._threading_downloader = get_factory().new_threading_downloader()
 
-    def flush(self):
-        url_to_wn_id = {}
+    def set_counts(self, counts):
+        self._category_counts = dict(counts)
 
+    @property
+    def category_counts(self):
+        return dict(self._category_counts)
+
+    def flush(self):
+        paths = self._file_paths()
+        urls = self._url_batch()
+
+        failed_urls, succeeded_urls = self.do_download(urls, paths)
+
+        self.on_fetched(failed_urls, succeeded_urls)
+
+        self._total_downloaded += len(succeeded_urls)
+        if self._total_downloaded >= self._max_images:
+            self.on_complete()
+
+        self._update_category_counts(succeeded_urls)
+
+        self._clear_buffer()
+
+    def _update_category_counts(self, succeeded_urls):
+        url_to_wn_id = {}
+        for wn_id, url in self._pending:
+            if wn_id not in url_to_wn_id:
+                if url not in url_to_wn_id:
+                    url_to_wn_id[url] = []
+                url_to_wn_id[url].append(wn_id)
+
+        for url in succeeded_urls:
+            wn_ids = url_to_wn_id[url]
+            for wn_id in wn_ids:
+                self._category_counts[wn_id] += 1
+
+    def _file_paths(self):
         paths = []
+
         for wn_id, url in self._pending:
             folder_path = self._location.category_path(wn_id)
             file_name = self._url2file_name.convert(url)
 
             path = os.path.join(folder_path, file_name)
             paths.append(path)
+        return paths
 
-            if wn_id not in url_to_wn_id:
-                if url not in url_to_wn_id:
-                    url_to_wn_id[url] = []
-                url_to_wn_id[url].append(wn_id)
-
-        urls = [url for _, url in self._pending]
-
-        failed_urls, succeeded_urls = self.do_download(urls, paths)
-
-        self.on_fetched(failed_urls, succeeded_urls)
-
-        self._clear_buffer()
-
-        self._total_downloaded += len(succeeded_urls)
-        if self._total_downloaded >= self._max_images:
-            self.on_complete()
-
-        for url in succeeded_urls:
-            wn_ids = url_to_wn_id[url]
-            for wn_id in wn_ids:
-                self._category_counts[wn_id] += 1
+    def _url_batch(self):
+        return [url for _, url in self._pending]
 
     def _clear_buffer(self):
         self._pending[:] = []
@@ -273,6 +290,9 @@ class BatchDownload:
                 self.flush()
 
 
+# todo: fix test for category_counts
+# todo: save and restore initial index used by url2name object
+# todo: use the class in pyqmlglue.py
 class StatefulDownloader:
     def __init__(self):
         self.destination = None
@@ -285,7 +305,8 @@ class StatefulDownloader:
         self._configured = False
         self.finished = False
         self._last_result = None
-        self._last_position = iterators.Position(-1, -1)
+        self._last_position = iterators.Position.null_position()
+        self._category_counts = {}
 
         try:
             self._restore_from_file()
@@ -315,6 +336,8 @@ class StatefulDownloader:
             self._last_position = iterators.Position.from_json(d['position'])
             self._last_result = Result(failed_urls, succeeded_urls)
 
+            self._category_counts = d['category_counts']
+
     def __iter__(self):
         if not self._configured:
             raise NotConfiguredError()
@@ -331,6 +354,7 @@ class StatefulDownloader:
                                        batch_size=self.batch_size,
                                        starting_index=1)
 
+        batch_download.set_counts(self._category_counts)
         result_arrived = False
 
         def fetch_handler(failed_urls, succeeded_urls):
@@ -360,7 +384,7 @@ class StatefulDownloader:
                 result_arrived = False
 
             self._last_position = position
-            #self.save()
+            self._category_counts = batch_download.category_counts
 
         batch_download.flush()
         self.finished = True
@@ -383,7 +407,8 @@ class StatefulDownloader:
             'finished': self.finished,
             'failed_urls': failed_urls,
             'succeeded_urls': succeeded_urls,
-            'position': self._last_position.to_json()
+            'position': self._last_position.to_json(),
+            'category_counts': self._category_counts
         }
 
         path = config.download_state_path

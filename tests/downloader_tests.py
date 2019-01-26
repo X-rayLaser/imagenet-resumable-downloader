@@ -665,6 +665,36 @@ class StatefulDownloaderTests(unittest.TestCase):
 
         self.assertTrue(downloader.finished)
 
+    def test_remembers_number_of_images_downloaded_for_each_category(self):
+        downloader = StatefulDownloader()
+
+        dconf = DownloadConfiguration(number_of_images=4,
+                                      images_per_category=1,
+                                      batch_size=2,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        for result in downloader:
+            break
+
+        downloader = StatefulDownloader()
+
+        failed_urls = []
+        successful_urls = []
+        for result in downloader:
+            failed_urls.extend(result.failed_urls)
+            successful_urls.extend(result.succeeded_urls)
+            break
+
+        self.assertEqual(failed_urls, [])
+        self.assertEqual(successful_urls, ['url4', 'url5'])
+
+        self.assertEqual(downloader.total_downloaded, 5)
+        self.assertEqual(downloader.total_failed, 0)
+
+        self.assertTrue(downloader.finished)
+
+
 
 if __name__ == '__main__':
     os.environ['TEST_ENV'] = 'test environment'

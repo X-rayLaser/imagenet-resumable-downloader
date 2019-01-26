@@ -1,11 +1,8 @@
 from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, QMutex, QWaitCondition
-from downloader import ImageNet
 import os
 import time
 from urllib.parse import urlparse
-import iterators
-from util import Url2FileName
 import downloader
 
 
@@ -22,8 +19,6 @@ class DownloadManager(QThread):
     def __init__(self, destination, number_of_examples, images_per_category):
         super().__init__()
         self.destination = destination
-        self._location = downloader.DownloadLocation(self.destination)
-
         self.number_of_examples = number_of_examples
         self.images_per_category = images_per_category
         self.mutex = QMutex()
@@ -33,36 +28,28 @@ class DownloadManager(QThread):
         self.downloaded = 0
 
     def run(self):
-        url2file_name = Url2FileName()
-
-        image_net_urls = iterators.create_image_net_urls()
-
-        factory = downloader.get_factory()
         self.downloaded = 0
 
-        for wn_id, urls, pos in image_net_urls:
+        stateful_downloader = downloader.StatefulDownloader()
+
+        conf = downloader.DownloadConfiguration(
+            number_of_images=self.number_of_examples,
+            images_per_category=self.images_per_category,
+            download_destination=self.destination,
+            batch_size=100
+        )
+        stateful_downloader.configure(conf)
+
+        for result in stateful_downloader:
+            self.imagesLoaded.emit(result.succeeded_urls)
+            self.downloadFailed.emit(result.failed_urls)
+            self.downloaded += len(result.succeeded_urls)
+
             if self.download_paused:
                 self.downloadPaused.emit()
                 self.mutex.lock()
                 self.wait_condition.wait(self.mutex)
                 self.mutex.unlock()
-
-            folder_path = self._location.category_path(wn_id)
-            threading_downloader = factory.new_threading_downloader(
-                destination=folder_path
-            )
-
-            batch = urls[:self.images_per_category]
-            file_names = [url2file_name.convert(url) for url in batch]
-            threading_downloader.download(batch, file_names)
-
-            self.imagesLoaded.emit(threading_downloader.downloaded_urls)
-            self.downloadFailed.emit(threading_downloader.failed_urls)
-
-            self.downloaded += len(threading_downloader.downloaded_urls)
-
-            if self.downloaded >= self.number_of_examples:
-                break
 
         self.allDownloaded.emit()
 
