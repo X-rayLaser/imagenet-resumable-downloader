@@ -413,6 +413,9 @@ class BatchDownloadTests(unittest.TestCase):
 
 class DownloadManagerTests(unittest.TestCase):
     def setUp(self):
+        if os.path.exists(config.app_data_folder):
+            shutil.rmtree(config.app_data_folder)
+
         image_net_home = os.path.join('temp', 'image_net_home')
         if os.path.exists(image_net_home):
             shutil.rmtree(image_net_home)
@@ -472,9 +475,10 @@ class DownloadManagerTests(unittest.TestCase):
     def test_images_per_category_argument(self):
         manager = DownloadManager(destination=self.image_net_home,
                                   number_of_examples=5,
-                                  images_per_category=1)
+                                  images_per_category=1,
+                                  batch_size=1)
 
-        #self.wait_for_completion(manager)
+        self.wait_for_completion(manager)
 
         files_count = 0
         for dirname, dirs, file_names in os.walk(self.image_net_home):

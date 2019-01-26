@@ -16,11 +16,13 @@ class DownloadManager(QThread):
 
     downloadResumed = QtCore.pyqtSignal()
 
-    def __init__(self, destination, number_of_examples, images_per_category):
+    def __init__(self, destination, number_of_examples, images_per_category,
+                 batch_size=100):
         super().__init__()
         self.destination = destination
         self.number_of_examples = number_of_examples
         self.images_per_category = images_per_category
+        self.batch_size = batch_size
         self.mutex = QMutex()
         self.download_paused = False
         self.wait_condition = QWaitCondition()
@@ -36,7 +38,7 @@ class DownloadManager(QThread):
             number_of_images=self.number_of_examples,
             images_per_category=self.images_per_category,
             download_destination=self.destination,
-            batch_size=100
+            batch_size=self.batch_size
         )
         stateful_downloader.configure(conf)
 
