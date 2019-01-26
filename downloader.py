@@ -292,7 +292,6 @@ class BatchDownload:
 
 # todo: fix test for category_counts
 # todo: save and restore initial index used by url2name object
-# todo: use the class in pyqmlglue.py
 class StatefulDownloader:
     def __init__(self):
         self.destination = None
@@ -377,6 +376,9 @@ class StatefulDownloader:
         batch_download.on_complete = complete_handler
 
         for wn_id, url, position in image_net_urls:
+            if self.finished:
+                break
+
             batch_download.add(wn_id, url)
 
             if result_arrived:

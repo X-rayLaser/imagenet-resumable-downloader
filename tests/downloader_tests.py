@@ -440,6 +440,8 @@ class DownloadManagerTests(unittest.TestCase):
         received = spy.wait(timeout=500)
         self.assertTrue(received)
 
+        self.stop_the_thread(manager)
+
     def test_folders_are_created(self):
         manager = DownloadManager(destination=self.image_net_home,
                                   number_of_examples=5,
@@ -447,6 +449,7 @@ class DownloadManagerTests(unittest.TestCase):
 
         self.wait_for_completion(manager)
         self._assert_expected_directories_exist()
+        self.stop_the_thread(manager)
 
     def test_files_are_downloaded(self):
         manager = DownloadManager(destination=self.image_net_home,
@@ -455,6 +458,7 @@ class DownloadManagerTests(unittest.TestCase):
 
         self.wait_for_completion(manager)
         self._assert_files_are_correct()
+        self.stop_the_thread(manager)
 
     def test_case_when_requested_number_of_images_is_greater_than_total(self):
         manager = DownloadManager(destination=self.image_net_home,
@@ -463,18 +467,21 @@ class DownloadManagerTests(unittest.TestCase):
 
         self.wait_for_completion(manager)
         self._assert_files_are_correct()
+        self.stop_the_thread(manager)
 
     def test_images_per_category_argument(self):
         manager = DownloadManager(destination=self.image_net_home,
                                   number_of_examples=5,
                                   images_per_category=1)
 
-        self.wait_for_completion(manager)
+        #self.wait_for_completion(manager)
 
         files_count = 0
         for dirname, dirs, file_names in os.walk(self.image_net_home):
             files_count += len(file_names)
         self.assertEqual(files_count, 2)
+
+        self.stop_the_thread(manager)
 
     def test_start_pause_and_resume(self):
         manager = DownloadManager(destination=self.image_net_home,
@@ -498,6 +505,8 @@ class DownloadManagerTests(unittest.TestCase):
 
         self._assert_expected_directories_exist()
         self._assert_files_are_correct()
+
+        self.stop_the_thread(manager)
 
     def _assert_expected_directories_exist(self):
         word_net_directories = []
@@ -525,6 +534,13 @@ class DownloadManagerTests(unittest.TestCase):
 
         received = spy.wait(timeout=500)
         self.assertTrue(received)
+
+    def stop_the_thread(self, manager):
+        try:
+            manager.terminate()
+            manager.wait()
+        except:
+            pass
 
 
 class StatefulDownloaderTests(unittest.TestCase):
