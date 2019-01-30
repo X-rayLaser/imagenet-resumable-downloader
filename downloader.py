@@ -257,6 +257,16 @@ class BatchDownload:
 # todo: fix test for category_counts
 class StatefulDownloader:
     def __init__(self):
+        self._set_defaults()
+
+        try:
+            self._restore_from_file()
+        except json.decoder.JSONDecodeError:
+            pass
+        except KeyError:
+            pass
+
+    def _set_defaults(self):
         self.destination = None
         self.number_of_images = 0
         self.images_per_category = 0
@@ -271,13 +281,6 @@ class StatefulDownloader:
         self._category_counts = {}
 
         self._file_index = 1
-
-        try:
-            self._restore_from_file()
-        except json.decoder.JSONDecodeError:
-            pass
-        except KeyError:
-            pass
 
     def _restore_from_file(self):
         path = config.download_state_path
@@ -388,6 +391,8 @@ class StatefulDownloader:
             f.write(json.dumps(d))
 
     def configure(self, conf):
+        self._set_defaults()
+
         self.destination = conf.download_destination
         self.number_of_images = conf.number_of_images
         self.images_per_category = conf.images_per_category

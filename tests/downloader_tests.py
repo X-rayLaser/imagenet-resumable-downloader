@@ -746,6 +746,48 @@ class StatefulDownloaderTests(unittest.TestCase):
 
         self.assertTrue(downloader.finished)
 
+    def test_reconfiguration(self):
+        downloader = StatefulDownloader()
+
+        dconf = DownloadConfiguration(number_of_images=4,
+                                      images_per_category=1,
+                                      batch_size=2,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        for result in downloader:
+            break
+
+        shutil.rmtree(self.image_net_home)
+        os.makedirs(self.image_net_home)
+
+        downloader = StatefulDownloader()
+        dconf = DownloadConfiguration(number_of_images=2,
+                                      images_per_category=2,
+                                      batch_size=2,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        failed_urls = []
+        successful_urls = []
+        for result in downloader:
+            failed_urls.extend(result.failed_urls)
+            successful_urls.extend(result.succeeded_urls)
+            break
+
+        self.assertEqual(successful_urls, ['url1', 'url2'])
+
+        self.assertEqual(downloader.total_downloaded, 2)
+        self.assertEqual(downloader.total_failed, 0)
+
+        fnames = []
+        for dirname, dirs, file_names in os.walk(self.image_net_home):
+            fnames.extend(file_names)
+
+        expected_names = ['1', '2']
+
+        self.assertEqual(set(fnames), set(expected_names))
+
 
 if __name__ == '__main__':
     os.environ['TEST_ENV'] = 'test environment'
