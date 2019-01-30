@@ -199,14 +199,13 @@ class BatchDownload:
 
         failed_urls, succeeded_urls = self.do_download(urls, paths)
 
-        self.on_fetched(failed_urls, succeeded_urls)
-
         self._total_downloaded += len(succeeded_urls)
         if self._total_downloaded >= self._max_images:
             self.on_complete()
 
         self._update_category_counts(succeeded_urls)
 
+        self.on_fetched(failed_urls, succeeded_urls)
         self._clear_buffer()
 
     def _update_category_counts(self, succeeded_urls):
@@ -329,6 +328,7 @@ class StatefulDownloader:
             self.total_failed += len(failed_urls)
             self.total_downloaded += len(succeeded_urls)
             self._file_index = batch_download.file_index
+            self._category_counts = batch_download.category_counts
 
             self._last_result = Result(
                 failed_urls=failed_urls,

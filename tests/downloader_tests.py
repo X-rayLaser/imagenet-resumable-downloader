@@ -741,11 +741,10 @@ class StatefulDownloaderTests(unittest.TestCase):
         self.assertEqual(failed_urls, [])
         self.assertEqual(successful_urls, ['url4', 'url5'])
 
-        self.assertEqual(downloader.total_downloaded, 5)
+        self.assertEqual(downloader.total_downloaded, 4)
         self.assertEqual(downloader.total_failed, 0)
 
         self.assertTrue(downloader.finished)
-
 
 
 if __name__ == '__main__':
