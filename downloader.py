@@ -193,6 +193,18 @@ class BatchDownload:
     def file_index(self):
         return self._url2file_name.file_index
 
+    @property
+    def batch_ready(self):
+        return len(self._pending) >= self._batch_size
+
+    @property
+    def complete(self):
+        return self._total_downloaded >= self._max_images
+
+    @property
+    def is_empty(self):
+        return len(self._pending) == 0
+
     def flush(self):
         paths = self._file_paths()
         urls = self._url_batch()
@@ -207,6 +219,8 @@ class BatchDownload:
 
         self.on_fetched(failed_urls, succeeded_urls)
         self._clear_buffer()
+
+        return failed_urls, succeeded_urls
 
     def _update_category_counts(self, succeeded_urls):
         url_to_wn_id = {}
@@ -250,8 +264,6 @@ class BatchDownload:
 
         if self._category_counts[wn_id] < self._images_per_category:
             self._pending.append((wn_id, url))
-            if len(self._pending) >= self._batch_size:
-                self.flush()
 
 
 # todo: fix test for category_counts
@@ -311,10 +323,6 @@ class StatefulDownloader:
         if not self._configured:
             raise NotConfiguredError()
 
-        image_net_urls = iterators.create_image_net_urls(
-            start_after_position=self._last_position
-        )
-
         images_left = self.number_of_images - self.total_downloaded
 
         batch_download = BatchDownload(dataset_root=self.destination,
@@ -324,47 +332,52 @@ class StatefulDownloader:
                                        starting_index=self._file_index)
 
         batch_download.set_counts(self._category_counts)
-        result_arrived = False
 
-        def fetch_handler(failed_urls, succeeded_urls):
-            nonlocal result_arrived
-            self.total_failed += len(failed_urls)
-            self.total_downloaded += len(succeeded_urls)
-            self._file_index = batch_download.file_index
-            self._category_counts = batch_download.category_counts
-
-            self._last_result = Result(
-                failed_urls=failed_urls,
-                succeeded_urls=succeeded_urls
-            )
-
-            self.save()
-            result_arrived = True
-
-        def complete_handler():
-            self.finished = True
-
-        batch_download.on_fetched = fetch_handler
-        batch_download.on_complete = complete_handler
+        image_net_urls = iterators.create_image_net_urls(
+            start_after_position=self._last_position
+        )
 
         for wn_id, url, position in image_net_urls:
-            if self.finished:
-                break
-
             batch_download.add(wn_id, url)
 
-            if result_arrived:
+            if batch_download.batch_ready:
+                failed_urls, succeeded_urls = batch_download.flush()
+                self._update_and_save_progress(failed_urls, succeeded_urls,
+                                               batch_download)
+
+                if batch_download.complete:
+                    self.finished = True
                 yield self._last_result
-                result_arrived = False
+                if batch_download.complete:
+                    self.finished = True
+                    break
 
             self._last_position = position
             self._category_counts = batch_download.category_counts
 
-        batch_download.flush()
         self.finished = True
-        self.save()
-        if result_arrived:
+        if not batch_download.is_empty:
+            self._finish_download(batch_download)
             yield self._last_result
+
+    def _finish_download(self, batch_download):
+        failed_urls, succeeded_urls = batch_download.flush()
+        self._update_and_save_progress(failed_urls, succeeded_urls,
+                                       batch_download)
+
+    def _update_and_save_progress(self, failed_urls, succeeded_urls,
+                                  batch_download):
+        self.total_failed += len(failed_urls)
+        self.total_downloaded += len(succeeded_urls)
+        self._file_index = batch_download.file_index
+        self._category_counts = batch_download.category_counts
+
+        self._last_result = Result(
+            failed_urls=failed_urls,
+            succeeded_urls=succeeded_urls
+        )
+
+        self.save()
 
     def save(self):
         failed_urls = self.last_result.failed_urls
