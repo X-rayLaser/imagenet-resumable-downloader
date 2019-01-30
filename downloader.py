@@ -138,45 +138,6 @@ class DownloadLocation:
             os.mkdir(dir_path)
 
 
-class ImageNet:
-    def __init__(self, number_of_examples, images_per_category,
-                 destination, on_loaded, on_failed):
-        self.number_of_examples = number_of_examples
-        self.images_per_category = images_per_category
-        self.downloaded = 0
-        self._location = DownloadLocation(destination)
-        self.training_set = []
-
-        self._on_loaded = on_loaded
-        self._on_failed = on_failed
-        self._timeout = 2
-
-    def download(self):
-        url2file_name = Url2FileName()
-
-        image_net_urls = iterators.create_image_net_urls()
-
-        factory = get_factory()
-
-        for wn_id, urls in image_net_urls:
-            folder_path = self._location.category_path(wn_id)
-            threading_downloader = factory.new_threading_downloader(
-                destination=folder_path
-            )
-
-            batch = urls[:self.images_per_category]
-            file_names = [url2file_name.convert(url) for url in batch]
-            threading_downloader.download(batch, file_names)
-
-            self._on_loaded(threading_downloader.downloaded_urls)
-            self._on_failed(threading_downloader.failed_urls)
-
-            self.downloaded += len(threading_downloader.downloaded_urls)
-
-            if self.downloaded >= self.number_of_examples:
-                break
-
-
 class DownloadConfiguration:
     def __init__(self, number_of_images,
                  images_per_category,
@@ -227,6 +188,10 @@ class BatchDownload:
     @property
     def category_counts(self):
         return dict(self._category_counts)
+
+    @property
+    def file_index(self):
+        return self._url2file_name.file_index
 
     def flush(self):
         paths = self._file_paths()
@@ -291,7 +256,6 @@ class BatchDownload:
 
 
 # todo: fix test for category_counts
-# todo: save and restore initial index used by url2name object
 class StatefulDownloader:
     def __init__(self):
         self.destination = None
@@ -306,6 +270,8 @@ class StatefulDownloader:
         self._last_result = None
         self._last_position = iterators.Position.null_position()
         self._category_counts = {}
+
+        self._file_index = 1
 
         try:
             self._restore_from_file()
@@ -337,6 +303,8 @@ class StatefulDownloader:
 
             self._category_counts = d['category_counts']
 
+            self._file_index = d['file_index']
+
     def __iter__(self):
         if not self._configured:
             raise NotConfiguredError()
@@ -351,7 +319,7 @@ class StatefulDownloader:
                                        number_of_images=images_left,
                                        images_per_category=self.images_per_category,
                                        batch_size=self.batch_size,
-                                       starting_index=1)
+                                       starting_index=self._file_index)
 
         batch_download.set_counts(self._category_counts)
         result_arrived = False
@@ -360,6 +328,7 @@ class StatefulDownloader:
             nonlocal result_arrived
             self.total_failed += len(failed_urls)
             self.total_downloaded += len(succeeded_urls)
+            self._file_index = batch_download.file_index
 
             self._last_result = Result(
                 failed_urls=failed_urls,
@@ -410,7 +379,8 @@ class StatefulDownloader:
             'failed_urls': failed_urls,
             'succeeded_urls': succeeded_urls,
             'position': self._last_position.to_json(),
-            'category_counts': self._category_counts
+            'category_counts': self._category_counts,
+            'file_index': self._file_index
         }
 
         path = config.download_state_path
@@ -436,20 +406,6 @@ class StatefulDownloader:
     @property
     def last_result(self):
         return self._last_result
-
-
-class Counter:
-    def update(self, count):
-        pass
-
-    def is_complete(self):
-        pass
-
-
-# todo: fix DownloadManager, make it thread-safe
-# todo: test DownloadManger with fake urls (and fake wn_id list)
-# todo: use ImageNet class in DownloadManger
-# todo: ImageNetUrls iterator must return only one url at a time
 
 
 class ProductionFactory:

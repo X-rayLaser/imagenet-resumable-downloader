@@ -27,6 +27,10 @@ class Url2FileName:
     def _url_to_file_name(self, url):
         return os.path.basename(urlparse(url).path)
 
+    @property
+    def file_index(self):
+        return self._index
+
 
 class MalformedUrlError(Exception):
     pass

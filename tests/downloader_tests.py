@@ -86,11 +86,15 @@ class Url2FileNameTests(unittest.TestCase):
 
     def test_starting_index(self):
         url2name = util.Url2FileName(starting_index=3)
+        self.assertEqual(url2name.file_index, 3)
+
         third = url2name.convert('http://example.com/third.gif')
         fourth = url2name.convert('http://example.com/fourth.png')
 
         self.assertEqual(third, '3.gif')
         self.assertEqual(fourth, '4.png')
+
+        self.assertEqual(url2name.file_index, 5)
 
 
 class ImageNetUrlsTests(unittest.TestCase):
@@ -553,6 +557,10 @@ class StatefulDownloaderTests(unittest.TestCase):
         if os.path.isfile(path):
             os.remove(path)
 
+        if os.path.exists(config.app_data_folder):
+            shutil.rmtree(config.app_data_folder)
+        os.makedirs(config.app_data_folder)
+
         image_net_home = os.path.join('temp', 'image_net_home')
         if os.path.exists(image_net_home):
             shutil.rmtree(image_net_home)
@@ -684,6 +692,30 @@ class StatefulDownloaderTests(unittest.TestCase):
         self.assertEqual(downloader.total_failed, 0)
 
         self.assertTrue(downloader.finished)
+
+    def test_creates_files_as_expected(self):
+        downloader = StatefulDownloader()
+
+        dconf = DownloadConfiguration(number_of_images=4,
+                                      images_per_category=1,
+                                      batch_size=2,
+                                      download_destination=self.image_net_home)
+        downloader.configure(dconf)
+
+        for result in downloader:
+            break
+
+        downloader = StatefulDownloader()
+        for result in downloader:
+            pass
+
+        fnames = []
+        for dirname, dirs, file_names in os.walk(self.image_net_home):
+            fnames.extend(file_names)
+
+        expected_names = ['1', '2', '3', '4']
+
+        self.assertEqual(set(fnames), set(expected_names))
 
     def test_remembers_number_of_images_downloaded_for_each_category(self):
         downloader = StatefulDownloader()
