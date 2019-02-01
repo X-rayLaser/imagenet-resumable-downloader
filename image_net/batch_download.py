@@ -1,4 +1,4 @@
-# <pyqt-robot - a small Selenium-like API for testing GUI apps written with PyQt.>
+# <imagenet-resumable-downloader - a GUI based utility for getting ImageNet images>
 # Copyright © 2019 Evgenii Dolotov. Contacts <supernovaprotocol@gmail.com>
 # Author: Evgenii Dolotov
 # License: https://www.gnu.org/licenses/gpl-3.0.txt
@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 import os
 from image_net.downloader import get_factory
 from image_net.util import Url2FileName
