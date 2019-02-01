@@ -9,7 +9,7 @@ from PyQt5.QtTest import QSignalSpy
 
 from registered_test_cases import Meta
 from config import config
-from py_qml_glue import DownloadManager
+from util.download_manager import DownloadManager
 
 
 class DownloadManagerTests(unittest.TestCase, metaclass=Meta):

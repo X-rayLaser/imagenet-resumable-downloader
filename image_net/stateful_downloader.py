@@ -1,9 +1,9 @@
 import json
 import os
 
-import iterators
+from image_net import iterators
 from config import config
-from batch_download import BatchDownload
+from image_net.batch_download import BatchDownload
 
 
 class StatefulDownloader:

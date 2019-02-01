@@ -3,10 +3,9 @@ import shutil
 import unittest
 
 from registered_test_cases import Meta
-import downloader
-import stateful_downloader
+from image_net import stateful_downloader
 from config import config
-from stateful_downloader import StatefulDownloader, DownloadConfiguration
+from image_net.stateful_downloader import StatefulDownloader, DownloadConfiguration
 
 
 class StatefulDownloaderTests(unittest.TestCase, metaclass=Meta):

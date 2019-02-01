@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, './')
 
 from registered_test_cases import Meta
-import util
+from image_net import util
 
 
 class Url2FileNameTests(unittest.TestCase, metaclass=Meta):

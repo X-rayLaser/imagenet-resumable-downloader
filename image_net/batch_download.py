@@ -1,7 +1,7 @@
 import os
 
-from downloader import get_factory
-from util import Url2FileName
+from image_net.downloader import get_factory
+from image_net.util import Url2FileName
 
 
 class BatchDownload:

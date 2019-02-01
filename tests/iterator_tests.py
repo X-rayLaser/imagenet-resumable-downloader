@@ -6,7 +6,7 @@ sys.path.insert(0, './')
 
 from registered_test_cases import Meta
 
-import iterators
+from image_net import iterators
 from config import config
 import shutil
 

@@ -2,11 +2,6 @@ import os
 from urllib.parse import urlparse
 
 
-def url_to_file_path(destination_dir, url):
-    file_name = os.path.basename(urlparse(url).path)
-    return os.path.join(destination_dir, file_name)
-
-
 class Url2FileName:
     def __init__(self, starting_index=1):
         self._index = starting_index

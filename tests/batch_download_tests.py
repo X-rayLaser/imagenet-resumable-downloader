@@ -5,7 +5,7 @@ import shutil
 
 sys.path.insert(0, './')
 
-import batch_download
+from image_net import batch_download
 
 from registered_test_cases import Meta
 
