@@ -22,11 +22,12 @@ from PyQt5.QtQml import QQmlApplicationEngine
 from PyQt5.QtGui import QGuiApplication
 from util.py_qml_glue import Worker
 
-
 logging.basicConfig(filename='MLpedia.log', level=logging.INFO)
 
 
 if __name__ == '__main__':
+    sys_argv = sys.argv
+    sys_argv += ['--style', 'Imagine']
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
 

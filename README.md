@@ -21,7 +21,7 @@ __Also, be warned! there are many placeholder images with text such as "This pho
 is no longer available". Here is an example of a Flickr image obtainable via one of 
 ImageNet URLs:__
 
-![alt text](image_not_available.jpg "Title")
+![alt text](image_not_available.jpg "One of images among downloaded ones")
 
 __You definitely don't want to include this one in the training set. But 
 unfortunately, the program cannot distinguish them from the images with 
@@ -64,7 +64,7 @@ Launch it by issuing the command
 
 - Launch the program
 - click a button "Choose" to specify ImageNet destination folder
-- set a spin box value next to "maximum # of images to download" to 1000
+- set a spin box value next to "# of images to download" to 1000
 - set a spin box value next to "# of images per category" to 200
 - click a "Download" button
 - wait until program finishes

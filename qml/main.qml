@@ -33,7 +33,8 @@ Window {
 
     Column {
         spacing: 10
-        width: parent.width
+        width: parent.width * 90 / 100
+        anchors.horizontalCenter: parent.horizontalCenter
 
         Row {
             spacing: 15
@@ -59,7 +60,7 @@ Window {
             width: parent.width
 
             Text {
-                text: "maximum # of images to download"
+                text: "# of images to download"
             }
             SpinBox {
                 id: amount_spnibox
