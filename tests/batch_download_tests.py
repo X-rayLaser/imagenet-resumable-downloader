@@ -4,8 +4,10 @@ import sys
 import shutil
 
 sys.path.insert(0, './')
+
+import batch_download
+
 from registered_test_cases import Meta
-import downloader
 
 
 class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
@@ -16,7 +18,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         os.makedirs(self.dataset_location, exist_ok=True)
 
     def test_flush_creates_directories(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 return [], urls
 
@@ -34,7 +36,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(dirs, ['wn1', 'wn2'])
 
     def test_flush_downloads_correctly(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 failed_urls = ['url1', 'url3']
                 succeeded_urls = ['url2']
@@ -50,7 +52,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(downloaded, ['url2'])
 
     def test_flush_removes_elements_in_buffer(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 failed_urls = urls
                 succeeded_urls = []
@@ -69,7 +71,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(downloaded, [])
 
     def test_batch_ready(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 failed_urls = [urls[0]]
                 succeeded_urls = [urls[1]]
@@ -87,7 +89,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(downloaded, ['url2'])
 
     def test_batch_empty(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 failed_urls = [urls[0]]
                 succeeded_urls = [urls[1]]
@@ -103,7 +105,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertTrue(d.is_empty)
 
     def test_completed(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 failed_urls = [urls[0]]
                 succeeded_urls = [urls[1]]
@@ -126,7 +128,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertTrue(d.complete)
 
     def test_complete_after_getting_more_images_than_was_requested(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 return [], urls
 
@@ -144,7 +146,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertTrue(d.complete)
 
     def test_that_images_per_category_parameter_works_correctly(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 return [], urls
 
@@ -169,7 +171,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(downloaded, ['url1', 'url2', 'url3', 'url5', 'url6', 'url7'])
 
     def test_with_both_limiting_parameters(self):
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 return [], urls
 
@@ -207,7 +209,7 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
     def test_destination_paths(self):
         paths = []
 
-        class BatchDownloadMocked(downloader.BatchDownload):
+        class BatchDownloadMocked(batch_download.BatchDownload):
             def do_download(self, urls, destinations):
                 paths.extend(destinations)
                 return [], urls

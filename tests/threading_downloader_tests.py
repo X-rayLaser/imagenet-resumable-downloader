@@ -8,7 +8,7 @@ from registered_test_cases import Meta
 from config import config
 import shutil
 import downloader
-from downloader import Url2FileName
+from util import Url2FileName
 
 
 class ThreadingDownloaderTests(unittest.TestCase, metaclass=Meta):

@@ -3,7 +3,11 @@ from PyQt5.QtCore import QThread, QMutex, QWaitCondition
 import os
 import time
 from urllib.parse import urlparse
+
+import batch_download
 import downloader
+import stateful_downloader
+from stateful_downloader import StatefulDownloader, DownloadConfiguration
 
 
 class DownloadManager(QThread):
@@ -32,9 +36,9 @@ class DownloadManager(QThread):
     def run(self):
         self.downloaded = 0
 
-        stateful_downloader = downloader.StatefulDownloader()
+        stateful_downloader = StatefulDownloader()
 
-        conf = downloader.DownloadConfiguration(
+        conf = DownloadConfiguration(
             number_of_images=self.number_of_examples,
             images_per_category=self.images_per_category,
             download_destination=self.destination,

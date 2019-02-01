@@ -4,8 +4,9 @@ import unittest
 
 from registered_test_cases import Meta
 import downloader
+import stateful_downloader
 from config import config
-from downloader import StatefulDownloader, DownloadConfiguration
+from stateful_downloader import StatefulDownloader, DownloadConfiguration
 
 
 class StatefulDownloaderTests(unittest.TestCase, metaclass=Meta):
@@ -55,7 +56,7 @@ class StatefulDownloaderTests(unittest.TestCase, metaclass=Meta):
             for result in d:
                 pass
 
-        self.assertRaises(downloader.NotConfiguredError, f)
+        self.assertRaises(stateful_downloader.NotConfiguredError, f)
 
     def test_data_persistence(self):
         downloader = StatefulDownloader()
@@ -105,7 +106,7 @@ class StatefulDownloaderTests(unittest.TestCase, metaclass=Meta):
             for res in d:
                 pass
 
-        self.assertRaises(downloader.NotConfiguredError, f)
+        self.assertRaises(stateful_downloader.NotConfiguredError, f)
 
     def test_with_missing_fields_in_json_file(self):
         path = config.download_state_path
@@ -119,7 +120,7 @@ class StatefulDownloaderTests(unittest.TestCase, metaclass=Meta):
             for res in d:
                 pass
 
-        self.assertRaises(downloader.NotConfiguredError, f)
+        self.assertRaises(stateful_downloader.NotConfiguredError, f)
 
     def test_stopping_and_resuming_with_new_instance(self):
         downloader = StatefulDownloader()
