@@ -1,0 +1,29 @@
+This file lists all third party libraries used by the software.
+
+Each entry contains a name of the library, copyright notice,
+the name of the license, a link to the complete license file.
+
+
+Pillow
+    Copyright © 1997-2011 by Secret Labs AB
+    Copyright © 1995-2011 by Fredrik Lundh
+
+    PIL Software License
+
+    http://www.pythonware.com/products/pil/license.htm
+
+
+PyQt5
+    Copyright © 2018 Riverbank Computing Limited
+
+    GNU GPL v3
+
+    https://www.gnu.org/licenses/gpl-3.0.txt
+
+
+Requests
+    Copyright 2018 Kenneth Reitz
+
+    Apache2 License
+
+    https://github.com/requests/requests/blob/master/LICENSE
