@@ -17,17 +17,10 @@ Window {
     property int failures: 0
     property bool download_completed: true
 
-    FileDialog {
+    DestinationDialog {
         id: fileDialog
-        title: "Please choose a file"
-        folder: shortcuts.home
-        selectFolder: true
         onAccepted: {
-            console.log("You chose: " + fileDialog.fileUrls)
             download_path.text = String(fileDialog.fileUrls[0]);
-        }
-        onRejected: {
-            console.log("Canceled")
         }
     }
 
@@ -184,12 +177,9 @@ Window {
             }
         }
 
-        Text {
+        Toast {
             id: complete_label
-            text: "Download is complete"
-            font.pointSize: 20.5
-            font.bold: true
-            visible: false
+            toastVisible: false
         }
     }
 
@@ -207,7 +197,7 @@ Window {
         if (root.images_loaded === root.images_total) {
             download_button.enabled = true;
             download_button.visible = true;
-            complete_label.visible = true;
+            complete_label.toastVisible = true;
             time_left_row.visible = false;
             toggle_button.visible = false;
         }
@@ -222,7 +212,7 @@ Window {
         download_button.enabled = false;
         root.images_loaded = 0;
         root.failures = 0;
-        complete_label.visible = false;
+        complete_label.toastVisible = false;
         time_left_row.visible = true;
         downloaded_amount_row.visible = true;
         failures_amount_row.visible = true;
