@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 
 from util.download_manager import DownloadManager
 from util.average import RunningAverage
+from config import config
 
 
 class Worker(QtCore.QObject):
@@ -55,9 +56,12 @@ class Worker(QtCore.QObject):
 
         path = self._parse_url(destination)
 
+        default_batch_size = config.default_batch_size
+
         self.thread = DownloadManager(destination=path,
                                       number_of_examples=nimages,
-                                      images_per_category=per_category)
+                                      images_per_category=per_category,
+                                      batch_size=default_batch_size)
 
         def handle_loaded(urls):
             amount = len(urls)

@@ -5,6 +5,7 @@ temp/
 dist/
 imagenet_data/
 *.qmlc
+*.jsc
 *.pyc
 *.log
 word_net_ids.txt

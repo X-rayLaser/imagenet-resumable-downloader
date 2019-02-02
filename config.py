@@ -43,6 +43,7 @@ class Config:
         self.synsets_timeout = 120
         self.file_download_timeout = 1
 
+        self.default_batch_size = 25
         self.pool_executor = ThreadPoolExecutor(max_workers=100)
 
     def synset_urls_path(self, word_net_id):

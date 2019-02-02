@@ -2,6 +2,7 @@ import QtQuick 2.5
 import QtQuick.Window 2.0
 import QtQuick.Controls 2.2
 import QtQuick.Dialogs 1.0
+import "../js/app_management.js" as AppManagement
 
 
 Window {
@@ -12,72 +13,37 @@ Window {
     height: 650
     visible: true
 
+    property string download_state: "ready"
     property int images_loaded: 0
     property int images_total: 10
     property int failures: 0
     property bool download_completed: true
-
-    DestinationDialog {
-        id: fileDialog
-        onAccepted: {
-            download_path.text = String(fileDialog.fileUrls[0]);
-        }
-    }
 
     Column {
         spacing: 10
         width: parent.width * 90 / 100
         anchors.horizontalCenter: parent.horizontalCenter
 
-        Row {
-            spacing: 15
-            Text {
-                text: "Download path"
-            }
-            Text {
-                id: download_path
-                text: ""
-            }
-
-            Button {
-                text: "Choose"
-                onClicked: {
-                    fileDialog.open();
-                    fileDialog.visible = true;
-                }
-            }
+        DestinationLocation {
+            id: location
+            width: parent.width
+            height: 50
         }
 
-        Row {
-            spacing: 15
-            width: parent.width
-
-            Text {
-                text: "# of images to download"
-            }
-            SpinBox {
-                id: amount_spnibox
-                from: 1
-                to: 100000
-                value: 90
-                editable: true
-            }
+        QuantityInput {
+            id: total_amount_id
+            from: 1
+            to: 100000
+            value: 90
+            labelText: "# of images to download"
         }
 
-        Row {
-            spacing: 15
-            width: parent.width
-
-            Text {
-                text: "# of images per category"
-            }
-            SpinBox {
-                id: images_per_category_spnibox
-                from: 1
-                to: 100000
-                value: 100
-                editable: true
-            }
+        QuantityInput {
+            id: images_per_category_spnibox
+            from: 1
+            to: 100000
+            value: 100
+            labelText: "# of images per category"
         }
 
         Row {
@@ -96,77 +62,28 @@ Window {
             Button {
                 id: download_button
                 text: "Download"
+                width: 300;
                 onClicked: startDownload()
             }
 
             Button {
                 id: toggle_button
                 text: "Pause"
+                width: 300;
                 onClicked: togglePause()
                 visible: false
             }
         }
 
-        Row {
-            id: time_left_row
-            spacing: 15
+        StatusBox {
+            id: progress_info_box
+            width: parent.width
             visible: false
-            anchors.horizontalCenter: parent.horizontalCenter
-            Text {
-                text: "Time remaining:"
-                font.pointSize: 20.5
-                font.bold: true
-            }
-
-            Text {
-                id: time_left
-                text: "0 seconds"
-                font.pointSize: 20.5
-                font.bold: true
-            }
-        }
-
-        Row {
-            id: downloaded_amount_row
-            spacing: 15
-            visible: false
-            anchors.horizontalCenter: parent.horizontalCenter
-            Text {
-                text: "Downloaded:"
-                font.pointSize: 20.5
-                font.bold: true
-            }
-
-            Text {
-                id: downloaded_amount
-                text: root.images_loaded
-                font.pointSize: 20.5
-                font.bold: true
-            }
-        }
-
-        Row {
-            id: failures_amount_row
-            spacing: 15
-            visible: false
-            anchors.horizontalCenter: parent.horizontalCenter
-            Text {
-                text: "Failures:"
-                font.pointSize: 20.5
-                font.bold: true
-            }
-
-            Text {
-                id: failures_amount
-                text: root.failures
-                font.pointSize: 20.5
-                font.bold: true
-            }
         }
 
         ScrollView {
             width: parent.width
-            height: 200
+            height: 150
 
             ListView {
                 id: failed_urls_model
@@ -198,7 +115,6 @@ Window {
             download_button.enabled = true;
             download_button.visible = true;
             complete_label.toastVisible = true;
-            time_left_row.visible = false;
             toggle_button.visible = false;
         }
     }
@@ -208,46 +124,59 @@ Window {
         failed_urls_model.model = failed_urls;
     }
 
-    function startDownload() {
-        download_button.enabled = false;
+    function initializeState() {
         root.images_loaded = 0;
         root.failures = 0;
-        complete_label.toastVisible = false;
-        time_left_row.visible = true;
-        downloaded_amount_row.visible = true;
-        failures_amount_row.visible = true;
         root.images_total = amount_spnibox.value;
+        root.download_state = "ready"
+    }
 
-        downloader.start_download(download_path.text,
+    function updateUI() {
+        var stateString = root.download_state;
+        var stateManager = new AppManagement.DownloadStateManager();
+        stateManager.setState(stateString);
+        stateManager.updateUI();
+    }
+
+    function startDownload() {
+        downloader.start_download(location.download_path,
                 amount_spnibox.value,
                 images_per_category_spnibox.value
         );
 
-        download_button.visible = false;
-        toggle_button.visible = true;
-        toggle_button.enabled = true;
-        toggle_button.text = "Pause";
+        initializeState();
+        root.download_state = "running";
+        updateUI();
     }
 
     function togglePause() {
+        var stateManager = new AppManagement.DownloadStateManager();
+
         if (toggle_button.text === "Pause") {
-            toggle_button.enabled = false;
-            toggle_button.text = "Pausing"
+            stateManager.setState("pausing");
             downloader.pause();
         } else {
-            toggle_button.enabled = false;
-            toggle_button.text = "Resume"
+            stateManager.setState("resuming");
             downloader.resume();
         }
+
+        stateManager.updateUI();
     }
 
     function handlePaused() {
-        toggle_button.text = "Resume";
-        toggle_button.enabled = true;
+        var stateManager = new AppManagement.DownloadStateManager();
+        stateManager.setState("resuming");
+        stateManager.updateUI();
     }
 
     function handleResumed() {
-        toggle_button.text = "Pause";
-        toggle_button.enabled = true;
+        var stateManager = new AppManagement.DownloadStateManager();
+        stateManager.setState("resumed");
+        stateManager.updateUI();
+    }
+
+    Component.onCompleted: {
+        initializeState();
+        updateUI();
     }
 }
