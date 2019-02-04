@@ -52,9 +52,10 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self._assert_signal_emitted('allDownloaded')
 
     def _assert_signal_emitted(self, signal):
-        manager = DownloadManager(destination=self.image_net_home,
-                                  number_of_examples=5,
-                                  images_per_category=10)
+        manager = DownloadManager()
+        manager.configure(destination=self.image_net_home,
+                          number_of_examples=5,
+                          images_per_category=10)
         signal = getattr(manager, signal)
         spy = QSignalSpy(signal)
         manager.start()
@@ -64,38 +65,42 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self.stop_the_thread(manager)
 
     def test_folders_are_created(self):
-        manager = DownloadManager(destination=self.image_net_home,
-                                  number_of_examples=5,
-                                  images_per_category=10)
+        manager = DownloadManager()
+        manager.configure(destination=self.image_net_home,
+                          number_of_examples=5,
+                          images_per_category=10)
 
         self.wait_for_completion(manager)
         self._assert_expected_directories_exist()
         self.stop_the_thread(manager)
 
     def test_files_are_downloaded(self):
-        manager = DownloadManager(destination=self.image_net_home,
-                                  number_of_examples=5,
-                                  images_per_category=10)
+        manager = DownloadManager()
+        manager.configure(destination=self.image_net_home,
+                          number_of_examples=5,
+                          images_per_category=10)
 
         self.wait_for_completion(manager)
         self._assert_files_are_correct()
         self.stop_the_thread(manager)
 
     def test_case_when_requested_number_of_images_is_greater_than_total(self):
-        manager = DownloadManager(destination=self.image_net_home,
-                                  number_of_examples=50,
-                                  images_per_category=100)
+        manager = DownloadManager()
+        manager.configure(destination=self.image_net_home,
+                          number_of_examples=50,
+                          images_per_category=100)
 
         self.wait_for_completion(manager)
         self._assert_files_are_correct()
         self.stop_the_thread(manager)
 
     def test_images_per_category_argument(self):
-        manager = DownloadManager(destination=self.image_net_home,
-                                  number_of_examples=5,
-                                  images_per_category=1,
-                                  batch_size=1)
+        manager = DownloadManager()
 
+        manager.configure(destination=self.image_net_home,
+                          number_of_examples=5,
+                          images_per_category=1,
+                          batch_size=1)
         self.wait_for_completion(manager)
 
         files_count = 0
@@ -106,9 +111,10 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self.stop_the_thread(manager)
 
     def test_start_pause_and_resume(self):
-        manager = DownloadManager(destination=self.image_net_home,
-                                  number_of_examples=5,
-                                  images_per_category=1)
+        manager = DownloadManager()
+        manager.configure(destination=self.image_net_home,
+                          number_of_examples=5,
+                          images_per_category=1)
         paused_spy = QSignalSpy(manager.downloadPaused)
         resumed_spy = QSignalSpy(manager.downloadResumed)
         finished_spy = QSignalSpy(manager.allDownloaded)

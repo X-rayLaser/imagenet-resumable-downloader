@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from PyQt5 import QtCore
 import os
+import json
 from urllib.parse import urlparse
 
 from util.download_manager import DownloadManager
@@ -25,49 +26,33 @@ from config import config
 
 
 class Worker(QtCore.QObject):
-    imageLoaded = QtCore.pyqtSignal()
 
-    downloadFailed = QtCore.pyqtSignal(
-        int, list, arguments=['failures', 'failed_urls']
-    )
-
-    downloadPaused = QtCore.pyqtSignal()
-
-    downloadResumed = QtCore.pyqtSignal()
+    stateChanged = QtCore.pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._download_path = ''
+        self._number_of_images = 100
+        self._images_per_category = 90
+        self._failures = 0
+        self._failed_urls = []
+        self._images = 0
+        self._state = 'initial'
+
         self._complete = True
-        self._images = 0
-
+        self.thread = DownloadManager()
         self._running_avg = RunningAverage()
-        self._number_of_images = 0
 
-    @QtCore.pyqtSlot(str, int, int)
-    def start_download(self, destination, number_of_images,
-                       images_per_category):
-        nimages = int(number_of_images)
-        per_category = int(images_per_category)
+        self._connect_signals()
 
-        self._number_of_images = nimages
+        self._started = False
 
-        self._complete = False
-        self._images = 0
-
-        path = self._parse_url(destination)
-
-        default_batch_size = config.default_batch_size
-
-        self.thread = DownloadManager(destination=path,
-                                      number_of_examples=nimages,
-                                      images_per_category=per_category,
-                                      batch_size=default_batch_size)
-
+    def _connect_signals(self):
         def handle_loaded(urls):
             amount = len(urls)
             self._images += amount
 
-            if self._images >= nimages:
+            if self._images >= self._number_of_images:
                 self._complete = True
 
             self._running_avg.update(amount)
@@ -85,16 +70,68 @@ class Worker(QtCore.QObject):
         self.thread.downloadPaused.connect(lambda: self.downloadPaused.emit())
         self.thread.downloadResumed.connect(lambda: self.downloadResumed.emit())
 
+    @QtCore.pyqtSlot()
+    def start_download(self):
+        self._complete = False
+        self._images = 0
+
         self._running_avg.reset()
         self.thread.start()
+        self._started = True
+
+    @QtCore.pyqtSlot(str, int, int)
+    def configure(self, destination, number_of_images,
+                       images_per_category):
+        nimages = int(number_of_images)
+        per_category = int(images_per_category)
+
+        self._number_of_images = nimages
+
+        self._complete = False
+        self._images = 0
+
+        path = self._parse_url(destination)
+
+        default_batch_size = config.default_batch_size
+
+        self.thread.configure(destination=path,
+                              number_of_examples=nimages,
+                              images_per_category=per_category,
+                              batch_size=default_batch_size)
 
     @QtCore.pyqtSlot()
     def pause(self):
-        self.thread.pause_download()
+        if self._started:
+            self.thread.pause_download()
+        else:
+            raise Exception('Has not started yet!')
 
     @QtCore.pyqtSlot()
     def resume(self):
-        self.thread.resume_download()
+        if self._started:
+            self.thread.resume_download()
+        else:
+            self.start_download()
+
+    @QtCore.pyqtProperty(str)
+    def download_state(self):
+        return self._state
+
+    @QtCore.pyqtProperty(str)
+    def state_data_json(self):
+        d = {
+            'downloadPath': self._download_path,
+            'numberOfImages': self._number_of_images,
+            'imagesPerCategory': self._images_per_category,
+
+            'timeLeft': self.time_remaining,
+            'imagesLoaded': self._images,
+            'failures': self._failures,
+            'failedUrls': self._failed_urls,
+            'progress': self._calculate_progress()
+        }
+
+        return json.dumps(d)
 
     @QtCore.pyqtProperty(int)
     def images_downloaded(self):
@@ -106,6 +143,9 @@ class Worker(QtCore.QObject):
 
     @QtCore.pyqtProperty(str)
     def time_remaining(self):
+        if self._running_avg.units_per_second == 0:
+            return 'Eternity'
+
         images_left = self._number_of_images - self._images
         time_left = round(
             images_left / float(self._running_avg.units_per_second)
@@ -126,3 +166,10 @@ class Worker(QtCore.QObject):
     def _parse_url(self, file_url):
         p = urlparse(file_url)
         return os.path.abspath(os.path.join(p.netloc, p.path))
+
+    def _calculate_progress(self):
+        if self._number_of_images == 0:
+            return 0
+        return self._images / float(self._number_of_images)
+
+# todo: unit test Worker
