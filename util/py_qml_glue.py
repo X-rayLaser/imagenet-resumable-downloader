@@ -25,6 +25,126 @@ from util.average import RunningAverage
 from config import config
 
 
+class LifeCycle(QtCore.QObject):
+    def __init__(self, download_strategy):
+        super().__init__()
+        self._download_strategy = download_strategy
+
+    @QtCore.pyqtSlot()
+    def start_download(self):
+        self._complete = False
+        self._images = 0
+
+        self._running_avg.reset()
+        self._download_strategy.start()
+        self._started = True
+
+    @QtCore.pyqtSlot(str, int, int)
+    def configure(self, destination, number_of_images,
+                  images_per_category):
+        try:
+            self._validate_input(destination, number_of_images,
+                                 images_per_category)
+        except Exception:
+            pass
+        else:
+            self._number_of_images = number_of_images
+            self._images_per_category = images_per_category
+
+            self._complete = False
+            self._images = 0
+
+            self._download_path = self._parse_url(destination)
+
+            self._download_strategy.configure(destination=self._download_path,
+                                  number_of_examples=number_of_images,
+                                  images_per_category=images_per_category,
+                                  batch_size=config.default_batch_size)
+            self._state = 'ready'
+
+    def _validate_input(self, destination, number_of_images,
+                        images_per_category):
+        if number_of_images <= 0 or images_per_category <= 0:
+            raise Exception()
+
+        path = self._parse_url(destination)
+        if not os.path.exists(path):
+            raise Exception()
+
+    @QtCore.pyqtSlot()
+    def pause(self):
+        if self._started:
+            self._download_strategy.pause_download()
+        else:
+            raise Exception('Has not started yet!')
+
+    @QtCore.pyqtSlot()
+    def resume(self):
+        if self._started:
+            self._download_strategy.resume_download()
+        else:
+            self.start_download()
+
+    @QtCore.pyqtProperty(str)
+    def download_state(self):
+        return self._state
+
+    @QtCore.pyqtProperty(str)
+    def state_data_json(self):
+        d = {
+            'downloadPath': self._download_path,
+            'numberOfImages': self._number_of_images,
+            'imagesPerCategory': self._images_per_category,
+
+            'timeLeft': self.time_remaining,
+            'imagesLoaded': self._images,
+            'failures': self._failures,
+            'failedUrls': self._failed_urls,
+            'progress': self._calculate_progress()
+        }
+
+        return json.dumps(d)
+
+    @QtCore.pyqtProperty(int)
+    def images_downloaded(self):
+        return self._images
+
+    @QtCore.pyqtProperty(bool)
+    def complete(self):
+        return self._complete
+
+    @QtCore.pyqtProperty(str)
+    def time_remaining(self):
+        if self._running_avg.units_per_second == 0:
+            return 'Eternity'
+
+        images_left = self._number_of_images - self._images
+        time_left = round(
+            images_left / float(self._running_avg.units_per_second)
+        )
+        return self._format_time(time_left)
+
+    def _format_time(self, seconds):
+        if seconds < 60:
+            return '{} seconds'.format(seconds)
+        elif seconds < 3600:
+            return '{} minutes'.format(round(seconds / 60.0))
+        elif seconds < 3600 * 24:
+            return '{} hours'.format(round(seconds / 3600.0))
+        else:
+            days = float(seconds) / (3600 * 24)
+            return '{} days'.format(round(days))
+
+    def _parse_url(self, file_url):
+        p = urlparse(file_url)
+        return os.path.abspath(os.path.join(p.netloc, p.path))
+
+    def _calculate_progress(self):
+        if self._number_of_images == 0:
+            return 0
+        return self._images / float(self._number_of_images)
+
+
 class Worker(QtCore.QObject):
 
     stateChanged = QtCore.pyqtSignal()
@@ -37,32 +157,34 @@ class Worker(QtCore.QObject):
         self._failures = 0
         self._failed_urls = []
         self._images = 0
-        self._state = 'initial'
 
-        self._complete = True
         self.thread = DownloadManager()
         self._running_avg = RunningAverage()
 
         self._connect_signals()
 
         self._started = False
+        self._complete = self.thread.stateful_downloader.finished
+        if self._complete:
+            self._state = 'finished'
+        else:
+            self._state = 'initial'
 
     def _connect_signals(self):
         def handle_loaded(urls):
             amount = len(urls)
             self._images += amount
 
-            if self._images >= self._number_of_images:
+            if self._images >= self._number_of_images or self.thread.stateful_downloader.finished:
                 self._complete = True
+                self._state = 'finished'
 
             self._running_avg.update(amount)
-            for i in range(amount):
-                self.imageLoaded.emit()
+            self.stateChanged.emit()
 
         def handle_failed(urls):
             amount = len(urls)
-
-            self.downloadFailed.emit(amount, urls)
+            self.stateChanged.emit()
 
         self.thread.imagesLoaded.connect(handle_loaded)
         self.thread.downloadFailed.connect(handle_failed)
@@ -82,22 +204,34 @@ class Worker(QtCore.QObject):
     @QtCore.pyqtSlot(str, int, int)
     def configure(self, destination, number_of_images,
                        images_per_category):
-        nimages = int(number_of_images)
-        per_category = int(images_per_category)
+        try:
+            self._validate_input(destination, number_of_images,
+                                 images_per_category)
+        except Exception:
+            pass
+        else:
+            self._number_of_images = number_of_images
+            self._images_per_category = images_per_category
 
-        self._number_of_images = nimages
+            self._complete = False
+            self._images = 0
 
-        self._complete = False
-        self._images = 0
+            self._download_path = self._parse_url(destination)
+
+            self.thread.configure(destination=self._download_path,
+                                  number_of_examples=number_of_images,
+                                  images_per_category=images_per_category,
+                                  batch_size=config.default_batch_size)
+            self._state = 'ready'
+
+    def _validate_input(self, destination, number_of_images,
+                        images_per_category):
+        if number_of_images <= 0 or images_per_category <= 0:
+            raise Exception()
 
         path = self._parse_url(destination)
-
-        default_batch_size = config.default_batch_size
-
-        self.thread.configure(destination=path,
-                              number_of_examples=nimages,
-                              images_per_category=per_category,
-                              batch_size=default_batch_size)
+        if not os.path.exists(path):
+            raise Exception()
 
     @QtCore.pyqtSlot()
     def pause(self):
@@ -172,4 +306,8 @@ class Worker(QtCore.QObject):
             return 0
         return self._images / float(self._number_of_images)
 
+
+# todo: Extract a class from Worker responsible for all the pause, resume, etc logic
 # todo: unit test Worker
+# todo: consider moving the state into separate class (perhaps as singleton)
+# todo: add support for loading all images from ImageNet

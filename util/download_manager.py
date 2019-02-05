@@ -43,6 +43,8 @@ class DownloadManager(QThread):
 
         self.downloaded = 0
 
+        self.stateful_downloader = StatefulDownloader()
+
     def configure(self, destination, number_of_examples,
                   images_per_category, batch_size=100):
         self.destination = destination
@@ -55,18 +57,18 @@ class DownloadManager(QThread):
 
         self.downloaded = 0
 
-    def run(self):
-        self.downloaded = 0
-
-        stateful_downloader = StatefulDownloader()
-
         conf = DownloadConfiguration(
             number_of_images=self.number_of_examples,
             images_per_category=self.images_per_category,
             download_destination=self.destination,
             batch_size=self.batch_size
         )
-        stateful_downloader.configure(conf)
+        self.stateful_downloader.configure(conf)
+
+    def run(self):
+        self.downloaded = 0
+
+        stateful_downloader = self.stateful_downloader
 
         for result in stateful_downloader:
             self.imagesLoaded.emit(result.succeeded_urls)

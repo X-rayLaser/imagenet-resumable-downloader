@@ -18,7 +18,8 @@
 import unittest
 import os
 import sys
-import registered_test_cases, batch_download_tests, download_manager_tests
+import registered_test_cases, batch_download_tests
+import download_manager_tests
 import iterator_tests, stateful_downloader_tests, threading_downloader_tests
 import util_tests
 import pyqt_qml_glue_tests

@@ -35,9 +35,15 @@ class WorkerTests(unittest.TestCase, metaclass=Meta):
         if os.path.exists(config.app_data_folder):
             shutil.rmtree(config.app_data_folder)
 
-    def test_initial_state(self):
         self.app = QtWidgets.QApplication(sys.argv)
 
+        image_net_home = os.path.join('temp', 'image_net_home')
+        if os.path.exists(image_net_home):
+            shutil.rmtree(image_net_home)
+        os.makedirs(image_net_home)
+        self.image_net_home = image_net_home
+
+    def test_initial_state(self):
         worker = Worker()
         state_data = json.loads(worker.state_data_json)
 
@@ -51,3 +57,112 @@ class WorkerTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(state_data['failures'], 0)
         self.assertEqual(state_data['failedUrls'], [])
         self.assertEqual(state_data['progress'], 0)
+
+    def test_configure_changes_parameters(self):
+        worker = Worker()
+        worker.configure(destination=self.image_net_home,
+                         number_of_images=10,
+                         images_per_category=5)
+        state_data = json.loads(worker.state_data_json)
+
+        expected_path = os.path.abspath(self.image_net_home)
+        self.assertEqual(state_data['downloadPath'], expected_path)
+        self.assertEqual(state_data['numberOfImages'], 10)
+        self.assertEqual(state_data['imagesPerCategory'], 5)
+        self.assertEqual(state_data['timeLeft'], 'Eternity')
+        self.assertEqual(state_data['imagesLoaded'], 0)
+        self.assertEqual(state_data['failures'], 0)
+        self.assertEqual(state_data['failedUrls'], [])
+        self.assertEqual(state_data['progress'], 0)
+
+        self.assertEqual(worker.download_state, 'ready')
+
+    def test_destination_path_validation(self):
+        worker = Worker()
+        dest = os.path.join('hello', 'world', 'folder')
+        worker.configure(destination=dest,
+                         number_of_images=10,
+                         images_per_category=5)
+
+        state_data = json.loads(worker.state_data_json)
+        self.assertEqual(state_data['downloadPath'], '')
+        self.assertEqual(worker.download_state, 'initial')
+
+    def test_number_of_images_validation(self):
+        worker = Worker()
+        worker.configure(destination=self.image_net_home,
+                         number_of_images=-1,
+                         images_per_category=5)
+
+        state_data = json.loads(worker.state_data_json)
+        self.assertEqual(state_data['numberOfImages'], 100)
+        self.assertEqual(worker.download_state, 'initial')
+
+        worker.configure(destination=self.image_net_home,
+                         number_of_images=0,
+                         images_per_category=5)
+
+        self.assertEqual(state_data['numberOfImages'], 100)
+        self.assertEqual(worker.download_state, 'initial')
+
+    def test_images_per_category_validation(self):
+        worker = Worker()
+        worker.configure(destination=self.image_net_home,
+                         number_of_images=10,
+                         images_per_category=-1)
+
+        state_data = json.loads(worker.state_data_json)
+        self.assertEqual(state_data['imagesPerCategory'], 90)
+        self.assertEqual(worker.download_state, 'initial')
+
+        worker.configure(destination=self.image_net_home,
+                         number_of_images=10,
+                         images_per_category=0)
+
+        self.assertEqual(state_data['imagesPerCategory'], 90)
+        self.assertEqual(worker.download_state, 'initial')
+
+    def test_wait_until_download_complete(self):
+        worker = Worker()
+        worker.configure(destination=self.image_net_home,
+                         number_of_images=10,
+                         images_per_category=5)
+
+        change_spy = QSignalSpy(worker.stateChanged)
+        worker.start_download()
+
+        while not worker.complete:
+            received = change_spy.wait(500)
+
+        self.assertEqual(worker.download_state, 'finished')
+        self.assertTrue(worker.complete)
+
+    def test_finished_state(self):
+        worker = Worker()
+        worker.configure(destination=self.image_net_home,
+                         number_of_images=5,
+                         images_per_category=10)
+
+        change_spy = QSignalSpy(worker.stateChanged)
+        worker.start_download()
+
+        while not worker.complete:
+            received = change_spy.wait(500)
+
+        worker = Worker()
+
+        self.assertEqual(worker.download_state, 'finished')
+        self.assertTrue(worker.complete)
+
+        worker = Worker()
+        expected_path = os.path.abspath(self.image_net_home)
+
+        state_data = json.loads(worker.state_data_json)
+        self.assertEqual(state_data['downloadPath'], expected_path)
+        self.assertEqual(state_data['numberOfImages'], 5)
+        self.assertEqual(state_data['imagesPerCategory'], 10)
+        self.assertEqual(state_data['timeLeft'], '0 seconds')
+        self.assertEqual(state_data['imagesLoaded'], 5)
+        self.assertEqual(state_data['failures'], 0)
+        self.assertEqual(state_data['failedUrls'], [])
+        self.assertEqual(state_data['progress'], 1.0)
