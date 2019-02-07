@@ -23,6 +23,7 @@ import shutil
 sys.path.insert(0, './')
 
 from image_net import batch_download
+from util.app_state import DownloadConfiguration
 
 from registered_test_cases import Meta
 
@@ -39,7 +40,11 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
             def do_download(self, urls, destinations):
                 return [], urls
 
-        d = BatchDownloadMocked(self.dataset_location)
+        conf = DownloadConfiguration(number_of_images=100,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=100)
+        d = BatchDownloadMocked(conf)
 
         for wn_id, url in [('wn1', 'url1'), ('wn2', 'url2'), ('wn2', 'x')]:
             d.add(wn_id, url)
@@ -58,7 +63,12 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
                 failed_urls = ['url1', 'url3']
                 succeeded_urls = ['url2']
                 return failed_urls, succeeded_urls
-        d = BatchDownloadMocked(self.dataset_location)
+
+        conf = DownloadConfiguration(number_of_images=100,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=100)
+        d = BatchDownloadMocked(conf)
 
         for wn_id, url in [('wn1', 'url1'), ('wn1', 'url2'), ('wn3', 'url3')]:
             d.add(wn_id, url)
@@ -75,7 +85,11 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
                 succeeded_urls = []
                 return failed_urls, succeeded_urls
 
-        d = BatchDownloadMocked(self.dataset_location, batch_size=2)
+        conf = DownloadConfiguration(number_of_images=100,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=2)
+        d = BatchDownloadMocked(conf)
 
         d.add('wn1', 'url1')
         d.add('wn2', 'url2')
@@ -93,7 +107,12 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
                 failed_urls = [urls[0]]
                 succeeded_urls = [urls[1]]
                 return failed_urls, succeeded_urls
-        d = BatchDownloadMocked(self.dataset_location, batch_size=2)
+
+        conf = DownloadConfiguration(number_of_images=100,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=2)
+        d = BatchDownloadMocked(conf)
 
         d.add('wn1', 'url1')
         self.assertFalse(d.batch_ready)
@@ -111,7 +130,12 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
                 failed_urls = [urls[0]]
                 succeeded_urls = [urls[1]]
                 return failed_urls, succeeded_urls
-        d = BatchDownloadMocked(self.dataset_location, batch_size=3)
+
+        conf = DownloadConfiguration(number_of_images=100,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=3)
+        d = BatchDownloadMocked(conf)
 
         self.assertTrue(d.is_empty)
         d.add('wn1', 'url1')
@@ -127,7 +151,12 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
                 failed_urls = [urls[0]]
                 succeeded_urls = [urls[1]]
                 return failed_urls, succeeded_urls
-        d = BatchDownloadMocked(self.dataset_location, number_of_images=2, batch_size=2)
+
+        conf = DownloadConfiguration(number_of_images=2,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=2)
+        d = BatchDownloadMocked(conf)
 
         self.assertFalse(d.complete)
 
@@ -149,7 +178,11 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
             def do_download(self, urls, destinations):
                 return [], urls
 
-        d = BatchDownloadMocked(self.dataset_location, number_of_images=3, batch_size=2)
+        conf = DownloadConfiguration(number_of_images=3,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=2)
+        d = BatchDownloadMocked(conf)
 
         d.add('wn1', 'url1')
         d.add('wn2', 'url3')
@@ -169,7 +202,11 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
 
         downloaded = []
 
-        d = BatchDownloadMocked(self.dataset_location, images_per_category=2, batch_size=3)
+        conf = DownloadConfiguration(number_of_images=100,
+                                     images_per_category=2,
+                                     download_destination=self.dataset_location,
+                                     batch_size=3)
+        d = BatchDownloadMocked(conf)
 
         d.add('n123', 'url1')
         d.add('n999', 'url2')
@@ -192,8 +229,11 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
             def do_download(self, urls, destinations):
                 return [], urls
 
-        d = BatchDownloadMocked(self.dataset_location, number_of_images=7,
-                                images_per_category=2, batch_size=2)
+        conf = DownloadConfiguration(number_of_images=7,
+                                     images_per_category=2,
+                                     download_destination=self.dataset_location,
+                                     batch_size=2)
+        d = BatchDownloadMocked(conf)
 
         d.add('n1', 'url1')
         d.add('n1', 'url2')
@@ -231,7 +271,11 @@ class BatchDownloadTests(unittest.TestCase, metaclass=Meta):
                 paths.extend(destinations)
                 return [], urls
 
-        d = BatchDownloadMocked(self.dataset_location, batch_size=3)
+        conf = DownloadConfiguration(number_of_images=100,
+                                     images_per_category=100,
+                                     download_destination=self.dataset_location,
+                                     batch_size=3)
+        d = BatchDownloadMocked(conf)
 
         d.add('dogs', 'url1.jpg')
         d.add('cats', 'url2.png')

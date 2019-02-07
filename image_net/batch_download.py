@@ -21,8 +21,12 @@ from image_net.util import Url2FileName
 
 
 class BatchDownload:
-    def __init__(self, dataset_root, number_of_images=100,
-                 images_per_category=100, batch_size=100, starting_index=1):
+    def __init__(self, download_configuration, starting_index=1):
+        dataset_root = download_configuration.download_destination
+        number_of_images = download_configuration.number_of_images
+        images_per_category = download_configuration.images_per_category
+        batch_size = download_configuration.batch_size
+
         self.on_fetched = lambda failed, succeeded : None
         self.on_complete = lambda: None
 

@@ -25,6 +25,14 @@ from config import config
 
 class AppState:
     def __init__(self):
+        self.reset()
+
+        try:
+            self.load()
+        except:
+            pass
+
+    def reset(self):
         self.download_configuration = DownloadConfiguration(
             number_of_images=100,
             images_per_category=90,
@@ -47,13 +55,11 @@ class AppState:
             file_index=1
         )
 
-        try:
-            self.load()
-        except:
-            pass
+        self.configured = False
 
     def set_configuration(self, conf):
         self.download_configuration = conf
+        self.configured = True
 
     def set_progress_info(self, progress_info):
         self.progress_info = progress_info
@@ -74,7 +80,8 @@ class AppState:
         d = {
             'download_configuration': conf_dict,
             'progress_info': progress_info,
-            'internal_state': internal_state
+            'internal_state': internal_state,
+            'configured': self.configured
         }
 
         path = config.app_state_path
@@ -100,6 +107,8 @@ class AppState:
 
             internal_state = d['internal_state']
             self.internal_state = InternalState.from_dict(internal_state)
+
+            self.configured = d['configured']
 
     def has_changed(self):
         pass

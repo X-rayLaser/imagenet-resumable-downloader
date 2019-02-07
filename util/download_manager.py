@@ -19,7 +19,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, QMutex, QWaitCondition
 
 from image_net.stateful_downloader import StatefulDownloader
-from util.app_state import DownloadConfiguration
+from util.app_state import DownloadConfiguration, AppState
 
 
 class DownloadManager(QThread):
@@ -44,7 +44,8 @@ class DownloadManager(QThread):
 
         self.downloaded = 0
 
-        self.stateful_downloader = StatefulDownloader()
+        app_state = AppState()
+        self.stateful_downloader = StatefulDownloader(app_state)
 
     def configure(self, destination, number_of_examples,
                   images_per_category, batch_size=100):
