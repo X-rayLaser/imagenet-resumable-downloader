@@ -26,6 +26,9 @@ class Config:
     def __init__(self,):
         self.app_data_folder = 'imagenet_data'
 
+        self.app_state_path = os.path.join(self.app_data_folder,
+                                           'app_state.json')
+
         self.wn_ids_path = os.path.join(self.app_data_folder,
                                         'word_net_ids.txt')
 

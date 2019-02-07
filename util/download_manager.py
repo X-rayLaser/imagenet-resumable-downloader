@@ -18,7 +18,8 @@
 from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, QMutex, QWaitCondition
 
-from image_net.stateful_downloader import StatefulDownloader, DownloadConfiguration
+from image_net.stateful_downloader import StatefulDownloader
+from util.app_state import DownloadConfiguration
 
 
 class DownloadManager(QThread):

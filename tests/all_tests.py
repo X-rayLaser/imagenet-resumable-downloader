@@ -22,7 +22,8 @@ import registered_test_cases, batch_download_tests
 import download_manager_tests
 import iterator_tests, stateful_downloader_tests, threading_downloader_tests
 import util_tests
-import pyqt_qml_glue_tests
+import app_state_tests
+#import pyqt_qml_glue_tests
 
 suite = unittest.TestSuite()
 

@@ -22,7 +22,8 @@ import unittest
 from registered_test_cases import Meta
 from image_net import stateful_downloader
 from config import config
-from image_net.stateful_downloader import StatefulDownloader, DownloadConfiguration
+from image_net.stateful_downloader import StatefulDownloader
+from util.app_state import DownloadConfiguration
 
 
 class StatefulDownloaderTests(unittest.TestCase, metaclass=Meta):

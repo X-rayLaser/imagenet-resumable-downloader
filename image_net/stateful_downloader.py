@@ -21,6 +21,7 @@ import os
 from image_net import iterators
 from config import config
 from image_net.batch_download import BatchDownload
+from util.app_state import DownloadConfiguration, Result
 
 
 class StatefulDownloader:
@@ -180,31 +181,6 @@ class StatefulDownloader:
     @property
     def last_result(self):
         return self._last_result
-
-
-class Result:
-    def __init__(self, failed_urls, succeeded_urls):
-        self.failed_urls = failed_urls
-        self.succeeded_urls = succeeded_urls
-
-    @property
-    def failures_count(self):
-        return len(self.failed_urls)
-
-    @property
-    def successes_count(self):
-        return len(self.succeeded_urls)
-
-
-class DownloadConfiguration:
-    def __init__(self, number_of_images,
-                 images_per_category,
-                 download_destination,
-                 batch_size=100):
-        self.number_of_images = number_of_images
-        self.images_per_category = images_per_category
-        self.download_destination = download_destination
-        self.batch_size = batch_size
 
 
 class NotConfiguredError(Exception):

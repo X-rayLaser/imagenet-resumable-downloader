@@ -42,34 +42,7 @@ class LifeCycle(QtCore.QObject):
     @QtCore.pyqtSlot(str, int, int)
     def configure(self, destination, number_of_images,
                   images_per_category):
-        try:
-            self._validate_input(destination, number_of_images,
-                                 images_per_category)
-        except Exception:
-            pass
-        else:
-            self._number_of_images = number_of_images
-            self._images_per_category = images_per_category
-
-            self._complete = False
-            self._images = 0
-
-            self._download_path = self._parse_url(destination)
-
-            self._download_strategy.configure(destination=self._download_path,
-                                  number_of_examples=number_of_images,
-                                  images_per_category=images_per_category,
-                                  batch_size=config.default_batch_size)
-            self._state = 'ready'
-
-    def _validate_input(self, destination, number_of_images,
-                        images_per_category):
-        if number_of_images <= 0 or images_per_category <= 0:
-            raise Exception()
-
-        path = self._parse_url(destination)
-        if not os.path.exists(path):
-            raise Exception()
+        self._state = 'ready'
 
     @QtCore.pyqtSlot()
     def pause(self):
@@ -105,44 +78,9 @@ class LifeCycle(QtCore.QObject):
 
         return json.dumps(d)
 
-    @QtCore.pyqtProperty(int)
-    def images_downloaded(self):
-        return self._images
-
     @QtCore.pyqtProperty(bool)
     def complete(self):
         return self._complete
-
-    @QtCore.pyqtProperty(str)
-    def time_remaining(self):
-        if self._running_avg.units_per_second == 0:
-            return 'Eternity'
-
-        images_left = self._number_of_images - self._images
-        time_left = round(
-            images_left / float(self._running_avg.units_per_second)
-        )
-        return self._format_time(time_left)
-
-    def _format_time(self, seconds):
-        if seconds < 60:
-            return '{} seconds'.format(seconds)
-        elif seconds < 3600:
-            return '{} minutes'.format(round(seconds / 60.0))
-        elif seconds < 3600 * 24:
-            return '{} hours'.format(round(seconds / 3600.0))
-        else:
-            days = float(seconds) / (3600 * 24)
-            return '{} days'.format(round(days))
-
-    def _parse_url(self, file_url):
-        p = urlparse(file_url)
-        return os.path.abspath(os.path.join(p.netloc, p.path))
-
-    def _calculate_progress(self):
-        if self._number_of_images == 0:
-            return 0
-        return self._images / float(self._number_of_images)
 
 
 class Worker(QtCore.QObject):
@@ -307,7 +245,24 @@ class Worker(QtCore.QObject):
         return self._images / float(self._number_of_images)
 
 
+# todo: create a class storing all the state of the app (configuration, internal state such as current interator position, etc.)
+
+# todo: implement save and load methods on that class
+
+# todo: add validation of arguments to Configuration class
+
+# todo: implement a helper for creating default configuration
+
+# todo: a method telling if state is default state (unchanged)
+
+# todo: inject the state into StatefulDownloader
+
+# todo: remove duplication related to state data management
+
+# todo: move _calculate_progress method to the new class for app state
+
 # todo: Extract a class from Worker responsible for all the pause, resume, etc logic
-# todo: unit test Worker
-# todo: consider moving the state into separate class (perhaps as singleton)
+
+# todo: unit test Worker (transition through all states
+
 # todo: add support for loading all images from ImageNet
