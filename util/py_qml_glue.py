@@ -25,38 +25,70 @@ from util.average import RunningAverage
 from config import config
 
 
-class LifeCycle(QtCore.QObject):
-    def __init__(self, download_strategy):
+class StateManager(QtCore.QObject):
+    stateChanged = QtCore.pyqtSignal()
+
+    def __init__(self):
         super().__init__()
-        self._download_strategy = download_strategy
+        self._state = 'initial'
+        self._errors = []
+        #self._download_strategy = download_strategy
 
     @QtCore.pyqtSlot()
     def start_download(self):
-        self._complete = False
-        self._images = 0
-
-        self._running_avg.reset()
-        self._download_strategy.start()
-        self._started = True
+        if self._state == 'ready':
+            self._state = 'running'
+            self.stateChanged.emit()
 
     @QtCore.pyqtSlot(str, int, int)
     def configure(self, destination, number_of_images,
                   images_per_category):
+        if self._state not in ['initial', 'ready']:
+            return
+
+        self._errors[:] = []
         self._state = 'ready'
+
+        if not destination.strip():
+            self._state = 'initial'
+            self._errors.append('Destination folder for ImageNet was not specified')
+        else:
+            path = self._parse_url(destination)
+            if not os.path.exists(path):
+                self._state = 'initial'
+                self._errors.append('Path "{}" does not exist'.format(path))
+
+        if number_of_images <= 0:
+            self._state = 'initial'
+            self._errors.append('Number of images must be greater than 0')
+
+        if images_per_category <= 0:
+            self._state = 'initial'
+            self._errors.append('Images per category must be greater than 0')
+
+        self.stateChanged.emit()
+
+    def _parse_url(self, file_uri):
+        p = urlparse(file_uri)
+        return os.path.abspath(os.path.join(p.netloc, p.path))
 
     @QtCore.pyqtSlot()
     def pause(self):
-        if self._started:
-            self._download_strategy.pause_download()
-        else:
-            raise Exception('Has not started yet!')
+        if self._state == 'running':
+            self._state = 'pausing'
+            self.stateChanged.emit()
 
     @QtCore.pyqtSlot()
     def resume(self):
-        if self._started:
-            self._download_strategy.resume_download()
-        else:
-            self.start_download()
+        if self._state == 'paused':
+            self._state = 'running'
+            self.stateChanged.emit()
+
+    @QtCore.pyqtSlot()
+    def reset(self):
+        if self._state not in ['running', 'pausing']:
+            self._state = 'initial'
+            self.stateChanged.emit()
 
     @QtCore.pyqtProperty(str)
     def download_state(self):
@@ -64,6 +96,11 @@ class LifeCycle(QtCore.QObject):
 
     @QtCore.pyqtProperty(str)
     def state_data_json(self):
+        d = {
+            'errors': self._errors
+        }
+        return json.dumps(d)
+
         d = {
             'downloadPath': self._download_path,
             'numberOfImages': self._number_of_images,
@@ -77,10 +114,6 @@ class LifeCycle(QtCore.QObject):
         }
 
         return json.dumps(d)
-
-    @QtCore.pyqtProperty(bool)
-    def complete(self):
-        return self._complete
 
 
 class Worker(QtCore.QObject):
