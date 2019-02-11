@@ -17,7 +17,7 @@ will have to use additional tools for that.
 Notice that it has been a while since ImageNet URLs were collected for the 
 first time. Therefore, many images are no longer available via these URLs.
 
-__Also, be warned! there are many placeholder images with text such as "This photo
+__Also, be warned! There are many placeholder images with text such as "This photo
 is no longer available". Here is an example of a Flickr image obtainable via one of 
 ImageNet URLs:__
 
@@ -31,7 +31,6 @@ other tools to find and remove placeholders like one above.__
 # Features
 
 - Qt based user interface
-- option to download all images
 - option to specify the number of images to download
 - option to specify the number of images per category to download
 - option to specify the download location
@@ -39,6 +38,10 @@ other tools to find and remove placeholders like one above.__
 - progress bar, estimated time till the end 
 - report file containing a list of urls of images that were 
 unavailable or could not be downloaded
+
+# Requirements
+
+The program was tested only for Python 3.6.7
 
 # Installation and launch
 
