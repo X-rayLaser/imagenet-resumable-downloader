@@ -111,7 +111,7 @@ Window {
 
     function startDownload() {
         downloader.configure(location.download_path,
-                amount_spnibox.value,
+                total_amount_id.value,
                 images_per_category_spnibox.value
         );
         downloader.start_download()

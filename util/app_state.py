@@ -28,6 +28,8 @@ from util.average import RunningAverage
 
 class AppState:
     def __init__(self):
+        self._running_avg = RunningAverage()
+
         self.reset()
 
         try:
@@ -36,7 +38,7 @@ class AppState:
             pass
 
     def reset(self):
-        self._running_avg = RunningAverage()
+        self._running_avg.reset()
 
         self.download_configuration = DownloadConfiguration(
             number_of_images=100,
@@ -74,6 +76,7 @@ class AppState:
         self.progress_info.total_failed += len(result.failed_urls)
         self.progress_info.total_downloaded += len(result.succeeded_urls)
         self.progress_info.last_result = result
+        self._running_avg.update(len(result.succeeded_urls))
 
     def mark_finished(self):
         self.progress_info.finished = True

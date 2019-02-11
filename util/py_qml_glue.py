@@ -39,10 +39,10 @@ class DummyStrategy(QtCore.QObject):
     def start(self):
         pass
 
-    def pause(self):
+    def pause_download(self):
         pass
 
-    def resume(self):
+    def resume_download(self):
         pass
 
     def configure(self, destination, number_of_examples,
@@ -55,8 +55,14 @@ class StateManager(QtCore.QObject):
 
     def __init__(self):
         super().__init__()
-        self._state = 'initial'
         self._app_state = AppState()
+
+        if self._app_state.progress_info.finished:
+            self._state = 'finished'
+        elif self._app_state.inprogress:
+            self._state = 'paused'
+        else:
+            self._state = 'initial'
 
         self._strategy = self.get_strategy()
         self._connect_signals()
@@ -72,11 +78,17 @@ class StateManager(QtCore.QObject):
             self._state = 'paused'
             self.stateChanged.emit()
 
+        def handle_allDownloaded():
+            self._state = 'finished'
+            self._app_state.mark_finished()
+            self._app_state.save()
+            self.stateChanged.emit()
+
         self._strategy.imagesLoaded.connect(handle_loaded)
         self._strategy.downloadFailed.connect(handle_failed)
 
         self._strategy.downloadPaused.connect(handle_paused)
-        #self._strategy.downloadResumed.connect(lambda: self.stateChanged.emit())
+        self._strategy.allDownloaded.connect(handle_allDownloaded)
 
     def get_strategy(self):
         return DummyStrategy()
@@ -151,13 +163,13 @@ class StateManager(QtCore.QObject):
         if self._state == 'running':
             self._state = 'pausing'
             self.stateChanged.emit()
-            self._strategy.pause()
+            self._strategy.pause_download()
 
     @QtCore.pyqtSlot()
     def resume(self):
         if self._state == 'paused':
             self._state = 'running'
-            self._strategy.resume()
+            self._strategy.resume_download()
             self.stateChanged.emit()
 
     @QtCore.pyqtSlot()
