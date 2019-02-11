@@ -34,6 +34,8 @@ class DummyStrategy(QtCore.QObject):
 
     downloadResumed = QtCore.pyqtSignal()
 
+    exceptionRaised = QtCore.pyqtSignal(str)
+
     def start(self):
         pass
 
@@ -53,6 +55,7 @@ class DummyStrategy(QtCore.QObject):
 
 class StateManager(QtCore.QObject):
     stateChanged = QtCore.pyqtSignal()
+    exceptionRaised = QtCore.pyqtSignal(str, arguments=['message'])
 
     def __init__(self):
         super().__init__()
@@ -88,11 +91,17 @@ class StateManager(QtCore.QObject):
             self._app_state.save()
             self.stateChanged.emit()
 
+        def handle_exception(message):
+            self._state = 'error'
+            self.exceptionRaised.emit(message)
+
         self._strategy.imagesLoaded.connect(handle_loaded)
         self._strategy.downloadFailed.connect(handle_failed)
 
         self._strategy.downloadPaused.connect(handle_paused)
         self._strategy.allDownloaded.connect(handle_allDownloaded)
+
+        self._strategy.exceptionRaised.connect(handle_exception)
 
     def _reset_log(self):
         if not os.path.exists(config.app_data_folder):

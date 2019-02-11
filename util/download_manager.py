@@ -19,6 +19,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, QMutex, QWaitCondition
 
 from image_net.stateful_downloader import StatefulDownloader
+from image_net.iterators import WordNetIdsUnavailableError
 
 
 class DownloadManager(QThread):
@@ -31,6 +32,8 @@ class DownloadManager(QThread):
 
     downloadResumed = QtCore.pyqtSignal()
 
+    exceptionRaised = QtCore.pyqtSignal(str)
+
     def __init__(self, app_state):
         super().__init__()
         self.mutex = QMutex()
@@ -42,21 +45,26 @@ class DownloadManager(QThread):
         self._has_started = False
 
     def run(self):
-        self._has_started = True
+        try:
+            self._has_started = True
 
-        stateful_downloader = self.stateful_downloader
+            stateful_downloader = self.stateful_downloader
 
-        for result in stateful_downloader:
-            self.imagesLoaded.emit(result.succeeded_urls)
-            self.downloadFailed.emit(result.failed_urls)
+            for result in stateful_downloader:
+                self.imagesLoaded.emit(result.succeeded_urls)
+                self.downloadFailed.emit(result.failed_urls)
 
-            if self.download_paused:
-                self.downloadPaused.emit()
-                self.mutex.lock()
-                self.wait_condition.wait(self.mutex)
-                self.mutex.unlock()
+                if self.download_paused:
+                    self.downloadPaused.emit()
+                    self.mutex.lock()
+                    self.wait_condition.wait(self.mutex)
+                    self.mutex.unlock()
 
-        self.allDownloaded.emit()
+            self.allDownloaded.emit()
+        except WordNetIdsUnavailableError:
+            msg = 'Failed to fetch a list of WordNet ids. ' \
+                  'Check if ImageNet server can be reached'
+            self.exceptionRaised.emit(msg)
 
     def pause_download(self):
         self.mutex.lock()

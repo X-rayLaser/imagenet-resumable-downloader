@@ -84,14 +84,21 @@ class ImageNetUrls:
         destination = config.wn_ids_path
 
         if self._file_is_missing(destination):
-            self._download_list(config.synsets_url, destination,
-                                config.word_net_ids_timeout)
+            try:
+                self._download_list(config.synsets_url, destination,
+                                    config.word_net_ids_timeout)
+            except:
+                # maybe log the error
+                raise WordNetIdsUnavailableError()
 
     def fetch_url_list(self, word_net_id):
         destination = config.synset_urls_path(word_net_id)
         if self._file_is_missing(destination):
             url = config.synset_download_url(word_net_id=word_net_id)
-            self._download_list(url, destination, config.synsets_timeout)
+            try:
+                self._download_list(url, destination, config.synsets_timeout)
+            except:
+                raise SynsetUrlsUnavailableError()
 
     def _file_is_missing(self, path):
         return not os.path.isfile(path)
@@ -122,7 +129,14 @@ class ImageNetUrls:
                 position.next_id()
                 continue
 
-            self.fetch_url_list(wn_id)
+            try:
+                self.fetch_url_list(wn_id)
+            except SynsetUrlsUnavailableError:
+                # if we failed to fetch file with urls for synset,
+                # continue with next WordNet id
+                position.next_id()
+                continue
+
             path = config.synset_urls_path(wn_id)
 
             synset = read_by_lines(path)
@@ -164,3 +178,9 @@ def create_image_net_urls(start_after_position=None):
 
 class InvalidBatchError(Exception):
     pass
+
+
+class WordNetIdsUnavailableError(Exception): pass
+
+
+class SynsetUrlsUnavailableError(Exception): pass

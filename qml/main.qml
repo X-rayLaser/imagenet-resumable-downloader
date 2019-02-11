@@ -1,7 +1,7 @@
 import QtQuick 2.5
 import QtQuick.Window 2.0
 import QtQuick.Controls 2.2
-import QtQuick.Dialogs 1.0
+import QtQuick.Dialogs 1.1
 import "../js/app_management.js" as AppManagement
 
 
@@ -12,6 +12,15 @@ Window {
     width: 600
     height: 650
     visible: true
+
+    MessageDialog {
+        id: errorDialog
+        title: "Imagenet resumable downloader"
+
+        onAccepted: {
+            errorDialog.visible = false;
+        }
+    }
 
     Column {
         spacing: 10
@@ -119,6 +128,7 @@ Window {
     Connections {
         target: downloader
         onStateChanged: updateUI()
+        onExceptionRaised: showErrorDialog(message)
     }
 
     function getActualStateData() {
@@ -149,6 +159,12 @@ Window {
 
     function abortDownload() {
         downloader.reset();
+    }
+
+    function showErrorDialog(msg) {
+        errorDialog.text = msg;
+        errorDialog.visible = true;
+        abortDownload();
     }
 
     Component.onCompleted: {
