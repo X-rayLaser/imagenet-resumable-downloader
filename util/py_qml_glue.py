@@ -177,6 +177,7 @@ class StateManager(QtCore.QObject):
         if self._state not in ['running', 'pausing']:
             self._state = 'initial'
             self._app_state.reset()
+            self._strategy.quit()
             self._strategy = self.get_strategy()
             self._connect_signals()
 
@@ -201,10 +202,8 @@ class Worker(StateManager):
         return DownloadManager(self._app_state)
 
 
-# todo: Refactor js code
-
 # todo: add validation of arguments to Configuration class
 
-# todo: Decide how to stop thread
+# todo: refactor backend once more
 
-# todo: add support for loading all images from ImageNet
+# todo: double check, update readme and upload
