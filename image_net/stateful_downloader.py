@@ -61,16 +61,16 @@ class StatefulDownloader:
                                                batch_download)
 
                 if batch_download.complete:
-                    progress_info.finished = True
+                    self._app_state.mark_finished()
                 yield self._last_result
                 if batch_download.complete:
-                    progress_info.finished = True
+                    self._app_state.mark_finished()
                     break
 
             internal.iterator_position = position
             internal.category_counts = batch_download.category_counts
 
-        progress_info.finished = True
+        self._app_state.mark_finished()
         if not batch_download.is_empty:
             self._finish_download(batch_download)
             yield self._last_result
@@ -82,11 +82,8 @@ class StatefulDownloader:
 
     def _update_and_save_progress(self, failed_urls, succeeded_urls,
                                   batch_download):
-        self._app_state.progress_info.total_failed += len(failed_urls)
-        self._app_state.progress_info.total_downloaded += len(succeeded_urls)
-        self._app_state.progress_info.last_result = Result(
-            failed_urls=failed_urls,
-            succeeded_urls=succeeded_urls
+        self._app_state.update_progress(
+            Result(failed_urls=failed_urls, succeeded_urls=succeeded_urls)
         )
 
         self._app_state.internal_state.file_index = batch_download.file_index

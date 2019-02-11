@@ -128,3 +128,142 @@ class AppStateTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(conf.download_destination, '')
         self.assertEqual(conf.number_of_images, 100)
         self.assertEqual(conf.images_per_category, 90)
+
+    def test_progress(self):
+        app_state = AppState()
+
+        new_conf = DownloadConfiguration(number_of_images=10,
+                                         images_per_category=83,
+                                         download_destination='481516')
+
+        last_result = Result(failed_urls=['1', 'one'], succeeded_urls=['x'])
+        progress_info = ProgressInfo(total_downloaded=9,
+                                     total_failed=38,
+                                     finished=False,
+                                     last_result=last_result)
+
+        app_state.set_configuration(new_conf)
+        app_state.set_progress_info(progress_info)
+
+        self.assertAlmostEqual(app_state.calculate_progress(), 0.9)
+
+    def test_progress_zero_by_zero(self):
+        app_state = AppState()
+
+        new_conf = DownloadConfiguration(number_of_images=0,
+                                         images_per_category=83,
+                                         download_destination='481516')
+
+
+        app_state.set_configuration(new_conf)
+
+        self.assertAlmostEqual(app_state.calculate_progress(), 0)
+
+    def test_is_inprogress_initially(self):
+        app_state = AppState()
+
+        self.assertFalse(app_state.inprogress)
+
+    def test_inprogress_after_updates(self):
+        app_state = AppState()
+        app_state.update_progress(result=Result([''], ['afef']))
+        self.assertTrue(app_state.inprogress)
+        app_state.save()
+
+        app_state = AppState()
+        self.assertTrue(app_state.inprogress)
+
+    def test_inprogress_after_finishing(self):
+        app_state = AppState()
+        app_state.update_progress(result=Result([''], ['afef']))
+        app_state.mark_finished()
+
+        self.assertTrue(app_state.inprogress)
+        app_state.save()
+
+        app_state = AppState()
+        self.assertTrue(app_state.inprogress)
+
+    def test_inprogress_after_configuring(self):
+        app_state = AppState()
+        app_state.update_progress(result=Result([''], ['afef']))
+        app_state.mark_finished()
+
+        new_conf = DownloadConfiguration(number_of_images=0,
+                                         images_per_category=83,
+                                         download_destination='481516')
+
+        app_state.set_configuration(new_conf)
+        self.assertFalse(app_state.inprogress)
+
+    def test_add_error(self):
+        app_state = AppState()
+
+        app_state.add_error('abc')
+        app_state.add_error('def')
+
+
+        app_state.errors[:] = []
+        self.assertEqual(app_state.errors, ['abc', 'def'])
+
+    def test_errors_after_new_configuration(self):
+        app_state = AppState()
+
+        new_conf = DownloadConfiguration(number_of_images=0,
+                                         images_per_category=83,
+                                         download_destination='481516')
+
+        app_state.add_error('abc')
+
+        app_state.set_configuration(new_conf)
+        self.assertEqual(app_state.errors, [])
+
+    def test_errors_persist(self):
+        app_state = AppState()
+        app_state.add_error('abc')
+        app_state.add_error('def')
+
+        app_state.save()
+
+        app_state = AppState()
+        self.assertEqual(app_state.errors, ['abc', 'def'])
+
+    def test_to_json(self):
+        app_state = AppState()
+
+        new_conf = DownloadConfiguration(number_of_images=9309,
+                                         images_per_category=83,
+                                         download_destination='481516')
+
+        last_result = Result(failed_urls=['1', 'one'], succeeded_urls=['x'])
+        progress_info = ProgressInfo(total_downloaded=192,
+                                     total_failed=38,
+                                     finished=False,
+                                     last_result=last_result)
+
+        position = Position(3, 1)
+        counts = {'wnid1': 29, 'wnid10': 3}
+        internal = InternalState(iterator_position=position,
+                                 category_counts=counts,
+                                 file_index=322)
+
+        app_state.set_configuration(new_conf)
+        app_state.set_progress_info(progress_info)
+        app_state.set_internal_state(internal)
+
+        app_state.add_error('Some error')
+
+        state_data = json.loads(app_state.to_json())
+
+        self.assertEqual(state_data['downloadPath'], '481516')
+        self.assertEqual(state_data['numberOfImages'], 9309)
+        self.assertEqual(state_data['imagesPerCategory'], 83)
+        self.assertNotEqual(state_data['timeLeft'], '')
+        self.assertEqual(state_data['imagesLoaded'], 192)
+        self.assertEqual(state_data['failures'], 38)
+        self.assertEqual(state_data['failedUrls'], ['1', 'one'])
+        self.assertEqual(state_data['succeededUrls'], ['x'])
+
+        self.assertEqual(state_data['errors'], ['Some error'])
+
+        self.assertAlmostEqual(state_data['progress'], 192.0 / 9309)

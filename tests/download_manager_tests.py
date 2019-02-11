@@ -27,6 +27,7 @@ from PyQt5.QtTest import QSignalSpy
 from registered_test_cases import Meta
 from config import config
 from util.download_manager import DownloadManager
+from util.app_state import AppState
 
 
 class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
@@ -52,7 +53,8 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self._assert_signal_emitted('allDownloaded')
 
     def _assert_signal_emitted(self, signal):
-        manager = DownloadManager()
+        app_state = AppState()
+        manager = DownloadManager(app_state)
         manager.configure(destination=self.image_net_home,
                           number_of_examples=5,
                           images_per_category=10)
@@ -65,7 +67,8 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self.stop_the_thread(manager)
 
     def test_folders_are_created(self):
-        manager = DownloadManager()
+        app_state = AppState()
+        manager = DownloadManager(app_state)
         manager.configure(destination=self.image_net_home,
                           number_of_examples=5,
                           images_per_category=10)
@@ -75,7 +78,8 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self.stop_the_thread(manager)
 
     def test_files_are_downloaded(self):
-        manager = DownloadManager()
+        app_state = AppState()
+        manager = DownloadManager(app_state)
         manager.configure(destination=self.image_net_home,
                           number_of_examples=5,
                           images_per_category=10)
@@ -85,7 +89,8 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self.stop_the_thread(manager)
 
     def test_case_when_requested_number_of_images_is_greater_than_total(self):
-        manager = DownloadManager()
+        app_state = AppState()
+        manager = DownloadManager(app_state)
         manager.configure(destination=self.image_net_home,
                           number_of_examples=50,
                           images_per_category=100)
@@ -95,7 +100,8 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self.stop_the_thread(manager)
 
     def test_images_per_category_argument(self):
-        manager = DownloadManager()
+        app_state = AppState()
+        manager = DownloadManager(app_state)
 
         manager.configure(destination=self.image_net_home,
                           number_of_examples=5,
@@ -111,7 +117,9 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         self.stop_the_thread(manager)
 
     def test_start_pause_and_resume(self):
-        manager = DownloadManager()
+        app_state = AppState()
+
+        manager = DownloadManager(app_state)
         manager.configure(destination=self.image_net_home,
                           number_of_examples=5,
                           images_per_category=1)

@@ -19,8 +19,11 @@
 
 import os
 import json
+from urllib.parse import urlparse
+
 from image_net.iterators import Position
 from config import config
+from util.average import RunningAverage
 
 
 class AppState:
@@ -33,6 +36,8 @@ class AppState:
             pass
 
     def reset(self):
+        self._running_avg = RunningAverage()
+
         self.download_configuration = DownloadConfiguration(
             number_of_images=100,
             images_per_category=90,
@@ -56,8 +61,25 @@ class AppState:
         )
 
         self.configured = False
+        self._errors = []
+
+    def add_error(self, message):
+        self._errors.append(message)
+
+    @property
+    def errors(self):
+        return list(self._errors)
+
+    def update_progress(self, result):
+        self.progress_info.total_failed += len(result.failed_urls)
+        self.progress_info.total_downloaded += len(result.succeeded_urls)
+        self.progress_info.last_result = result
+
+    def mark_finished(self):
+        self.progress_info.finished = True
 
     def set_configuration(self, conf):
+        self.reset()
         self.download_configuration = conf
         self.configured = True
 
@@ -81,12 +103,28 @@ class AppState:
             'download_configuration': conf_dict,
             'progress_info': progress_info,
             'internal_state': internal_state,
-            'configured': self.configured
+            'configured': self.configured,
+            'errors': self._errors
         }
 
         path = config.app_state_path
         with open(path, 'w') as f:
             f.write(json.dumps(d))
+
+    def to_json(self):
+        download_conf = self.download_configuration
+        d = dict(downloadPath=download_conf.download_destination,
+                 numberOfImages=download_conf.number_of_images,
+                 imagesPerCategory=download_conf.images_per_category,
+                 timeLeft=self.time_remaining,
+                 imagesLoaded=self.progress_info.total_downloaded,
+                 failures=self.progress_info.total_failed,
+                 failedUrls=self.progress_info.last_result.failed_urls,
+                 succeededUrls=self.progress_info.last_result.succeeded_urls,
+                 errors=self._errors,
+                 progress=self.calculate_progress())
+
+        return json.dumps(d)
 
     def load(self):
         if not os.path.exists(config.app_data_folder):
@@ -109,9 +147,52 @@ class AppState:
             self.internal_state = InternalState.from_dict(internal_state)
 
             self.configured = d['configured']
+            self._errors = d['errors']
 
-    def has_changed(self):
-        pass
+    @property
+    def inprogress(self):
+        return self.progress_info.total_failed > 0 or \
+               self.progress_info.total_downloaded > 0
+
+    def calculate_progress(self):
+        images_total = self.download_configuration.number_of_images
+        downloaded = self.progress_info.total_downloaded
+        if images_total == 0:
+            return 0
+        return downloaded/ float(images_total)
+
+    @property
+    def time_remaining(self):
+        if self._running_avg.units_per_second == 0:
+            return 'Eternity'
+
+        images_left = self.download_configuration.number_of_images - \
+                      self.progress_info.total_downloaded
+        time_left = round(
+            images_left / float(self._running_avg.units_per_second)
+        )
+        return self._format_time(time_left)
+
+    def _format_time(self, seconds):
+        if seconds < 60:
+            return '{} seconds'.format(seconds)
+        elif seconds < 3600:
+            return '{} minutes'.format(round(seconds / 60.0))
+        elif seconds < 3600 * 24:
+            return '{} hours'.format(round(seconds / 3600.0))
+        else:
+            days = float(seconds) / (3600 * 24)
+            return '{} days'.format(round(days))
+
+    def _parse_url(self, file_url):
+        p = urlparse(file_url)
+        return os.path.abspath(os.path.join(p.netloc, p.path))
+
+    def _calculate_progress(self):
+        num_of_images = self.download_configuration.number_of_images
+        if num_of_images == 0:
+            return 0
+        return self.progress_info.total_downloaded / float(num_of_images)
 
 
 class DownloadConfiguration:
@@ -208,3 +289,6 @@ class Result:
     @property
     def successes_count(self):
         return len(self.succeeded_urls)
+
+
+class DirectoryNotFoundError(Exception): pass
