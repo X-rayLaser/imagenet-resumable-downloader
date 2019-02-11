@@ -92,18 +92,6 @@ class StatefulDownloader:
     def save(self):
         self._app_state.save()
 
-    def configure(self, conf):
-        self._app_state.reset()
-        self._conf = conf
-        self._app_state.set_configuration(conf)
-        self._configured = True
-        self._app_state.configured = True
-        self.save()
-
-    @property
-    def configuration(self):
-        return self._conf
-
     @property
     def progress_info(self):
         return self._app_state.progress_info

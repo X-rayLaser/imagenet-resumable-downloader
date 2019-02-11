@@ -192,7 +192,8 @@ class StatefulDownloaderTests(unittest.TestCase, metaclass=Meta):
                                       images_per_category=2,
                                       batch_size=2,
                                       download_destination=self.image_net_home)
-        downloader.configure(dconf)
+
+        app_state.set_configuration(dconf)
 
         failed_urls = []
         successful_urls = []

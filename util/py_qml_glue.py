@@ -129,14 +129,13 @@ class StateManager(QtCore.QObject):
 
         conf = DownloadConfiguration(number_of_images=number_of_images,
                                      images_per_category=images_per_category,
-                                     download_destination=destination)
+                                     download_destination=destination,
+                                     batch_size=config.default_batch_size)
         if conf.is_valid:
             self._state = 'ready'
             path = self._parse_url(destination)
-
-            self._strategy.configure(destination=path,
-                                     number_of_examples=number_of_images,
-                                     images_per_category=images_per_category)
+            conf.download_destination = path
+            self._app_state.set_configuration(conf)
         else:
             self._state = 'initial'
             self._generate_error_messages(conf)
@@ -195,6 +194,8 @@ class Worker(StateManager):
     def get_strategy(self):
         return DownloadManager(self._app_state)
 
+
+# todo: remove redundant delegation to configure method
 
 # todo: refactor backend once more
 

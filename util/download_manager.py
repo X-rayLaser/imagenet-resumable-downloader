@@ -19,7 +19,6 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, QMutex, QWaitCondition
 
 from image_net.stateful_downloader import StatefulDownloader
-from util.app_state import DownloadConfiguration
 
 
 class DownloadManager(QThread):
@@ -34,50 +33,22 @@ class DownloadManager(QThread):
 
     def __init__(self, app_state):
         super().__init__()
-        self.destination = None
-        self.number_of_examples = None
-        self.images_per_category = None
-        self.batch_size = None
         self.mutex = QMutex()
         self.download_paused = False
         self.wait_condition = QWaitCondition()
-
-        self.downloaded = 0
 
         self.stateful_downloader = StatefulDownloader(app_state)
 
         self._has_started = False
 
-    def configure(self, destination, number_of_examples,
-                  images_per_category, batch_size=100):
-        self.destination = destination
-        self.number_of_examples = number_of_examples
-        self.images_per_category = images_per_category
-        self.batch_size = batch_size
-        self.mutex = QMutex()
-        self.download_paused = False
-        self.wait_condition = QWaitCondition()
-
-        self.downloaded = 0
-
-        conf = DownloadConfiguration(
-            number_of_images=self.number_of_examples,
-            images_per_category=self.images_per_category,
-            download_destination=self.destination,
-            batch_size=self.batch_size
-        )
-        self.stateful_downloader.configure(conf)
-
     def run(self):
         self._has_started = True
-        self.downloaded = 0
 
         stateful_downloader = self.stateful_downloader
 
         for result in stateful_downloader:
             self.imagesLoaded.emit(result.succeeded_urls)
             self.downloadFailed.emit(result.failed_urls)
-            self.downloaded += len(result.succeeded_urls)
 
             if self.download_paused:
                 self.downloadPaused.emit()

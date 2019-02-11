@@ -27,7 +27,7 @@ from PyQt5.QtTest import QSignalSpy
 from registered_test_cases import Meta
 from config import config
 from util.download_manager import DownloadManager
-from util.app_state import AppState
+from util.app_state import AppState, DownloadConfiguration
 
 
 class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
@@ -55,9 +55,11 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
     def _assert_signal_emitted(self, signal):
         app_state = AppState()
         manager = DownloadManager(app_state)
-        manager.configure(destination=self.image_net_home,
-                          number_of_examples=5,
-                          images_per_category=10)
+
+        conf = DownloadConfiguration(number_of_images=5,
+                                     images_per_category=10,
+                                     download_destination=self.image_net_home)
+        app_state.set_configuration(conf)
         signal = getattr(manager, signal)
         spy = QSignalSpy(signal)
         manager.start()
@@ -69,9 +71,11 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
     def test_folders_are_created(self):
         app_state = AppState()
         manager = DownloadManager(app_state)
-        manager.configure(destination=self.image_net_home,
-                          number_of_examples=5,
-                          images_per_category=10)
+        conf = DownloadConfiguration(number_of_images=5,
+                                     images_per_category=10,
+                                     download_destination=self.image_net_home)
+
+        app_state.set_configuration(conf)
 
         self.wait_for_completion(manager)
         self._assert_expected_directories_exist()
@@ -80,9 +84,12 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
     def test_files_are_downloaded(self):
         app_state = AppState()
         manager = DownloadManager(app_state)
-        manager.configure(destination=self.image_net_home,
-                          number_of_examples=5,
-                          images_per_category=10)
+
+        conf = DownloadConfiguration(number_of_images=5,
+                                     images_per_category=10,
+                                     download_destination=self.image_net_home)
+
+        app_state.set_configuration(conf)
 
         self.wait_for_completion(manager)
         self._assert_files_are_correct()
@@ -91,9 +98,12 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
     def test_case_when_requested_number_of_images_is_greater_than_total(self):
         app_state = AppState()
         manager = DownloadManager(app_state)
-        manager.configure(destination=self.image_net_home,
-                          number_of_examples=50,
-                          images_per_category=100)
+
+        conf = DownloadConfiguration(number_of_images=50,
+                                     images_per_category=100,
+                                     download_destination=self.image_net_home)
+
+        app_state.set_configuration(conf)
 
         self.wait_for_completion(manager)
         self._assert_files_are_correct()
@@ -103,10 +113,13 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         app_state = AppState()
         manager = DownloadManager(app_state)
 
-        manager.configure(destination=self.image_net_home,
-                          number_of_examples=5,
-                          images_per_category=1,
-                          batch_size=1)
+        conf = DownloadConfiguration(number_of_images=5,
+                                     images_per_category=1,
+                                     download_destination=self.image_net_home,
+                                     batch_size=1)
+
+        app_state.set_configuration(conf)
+
         self.wait_for_completion(manager)
 
         files_count = 0
@@ -120,9 +133,13 @@ class DownloadManagerTests(unittest.TestCase, metaclass=Meta):
         app_state = AppState()
 
         manager = DownloadManager(app_state)
-        manager.configure(destination=self.image_net_home,
-                          number_of_examples=5,
-                          images_per_category=1)
+
+        conf = DownloadConfiguration(number_of_images=5,
+                                     images_per_category=1,
+                                     download_destination=self.image_net_home)
+
+        app_state.set_configuration(conf)
+
         paused_spy = QSignalSpy(manager.downloadPaused)
         resumed_spy = QSignalSpy(manager.downloadResumed)
         finished_spy = QSignalSpy(manager.allDownloaded)
