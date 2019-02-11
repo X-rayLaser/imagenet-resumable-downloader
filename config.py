@@ -16,14 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
+import json
 from concurrent.futures import ThreadPoolExecutor
 
 
-# todo: download from config.json
-
-
 class Config:
-    def __init__(self,):
+    def __init__(self):
+        with open('settings.json', 'r') as f:
+            s = f.read()
+
+        settings = json.loads(s)
+
         self.app_data_folder = 'imagenet_data'
 
         self.log_path = os.path.join(self.app_data_folder, 'failures.log')
@@ -44,12 +47,14 @@ class Config:
             'http://www.image-net.org/api/text/imagenet.synset.obtain_synset_list'
         )
 
-        self.word_net_ids_timeout = 120
-        self.synsets_timeout = 120
-        self.file_download_timeout = 1
+        self.word_net_ids_timeout = settings['word_net_ids_timeout']
+        self.synsets_timeout = settings['synsets_timeout']
+        self.file_download_timeout = settings['file_download_timeout']
 
-        self.default_batch_size = 25
-        self.pool_executor = ThreadPoolExecutor(max_workers=100)
+        self.default_batch_size = settings['batch_size']
+        self.pool_executor = ThreadPoolExecutor(
+            max_workers=settings['max_workers']
+        )
 
     def synset_urls_path(self, word_net_id):
         file_name = 'synset_urls_{}.txt'.format(word_net_id)

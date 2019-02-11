@@ -195,8 +195,6 @@ class Worker(StateManager):
         return DownloadManager(self._app_state)
 
 
-# todo: remove redundant delegation to configure method
-
 # todo: refactor backend once more
 
 # todo: double check, update readme and upload

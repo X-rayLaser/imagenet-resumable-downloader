@@ -1,0 +1,7 @@
+{
+  "word_net_ids_timeout": 120,
+  "synsets_timeout": 120,
+  "file_download_timeout": 1,
+  "batch_size": 500,
+  "max_workers": 500
+}
