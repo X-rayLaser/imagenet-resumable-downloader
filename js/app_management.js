@@ -3,24 +3,57 @@ function updateControlsValues(stateData) {
     total_amount_id.value = parseInt(stateData.numberOfImages);
     images_per_category_spnibox.value = parseInt(stateData.imagesPerCategory);
 
-    progress_info_box.timeLeft = stateData.timeLeft;
+    time_left_id.value = stateData.timeLeft;
     progress_info_box.imagesLoaded = stateData.imagesLoaded;
     progress_info_box.failures = stateData.failures;
     failed_urls_model.model = stateData.failedUrls;
     bar.value = parseFloat(stateData.progress);
+
+    errors_id.text = String(stateData.errors);
+}
+
+function showInputElements() {
+    location.visible = true;
+    total_amount_id.visible = true;
+    images_per_category_spnibox.visible = true;
+    errors_id.visible = true;
+}
+
+function hideInputElements() {
+    location.visible = false;
+    total_amount_id.visible = false;
+    images_per_category_spnibox.visible = false;
+    errors_id.visible = false;
+}
+
+function showProgress() {
+    bar.visible = true;
+    time_left_id.visible = true;
+    progress_info_box.visible = true;
+}
+
+function hideProgress() {
+    bar.visible = false;
+    time_left_id.visible = false;
+    progress_info_box.visible = false;
 }
 
 function InitialState() {
     this.updateUI = function(stateData) {
         download_button.enabled = false;
         download_button.visible = true;
+
         toggle_button.visible = false;
         toggle_button.enabled = false;
         toggle_button.text = "Pause";
 
-        bar.visible = false;
+        reset_button.enabled = false;
+        reset_button.visible = false;
+
+        showInputElements();
+
+        hideProgress();
         complete_label.toastVisible = false;
-        progress_info_box.visible = false;
     };
 
     return this;
@@ -30,13 +63,18 @@ function ReadyState() {
     this.updateUI = function(stateData) {
         download_button.enabled = true;
         download_button.visible = true;
+
         toggle_button.visible = false;
         toggle_button.enabled = false;
         toggle_button.text = "Pause";
 
-        bar.visible = false;
+        reset_button.enabled = false;
+        reset_button.visible = false;
+
+        showInputElements();
+
+        hideProgress();
         complete_label.toastVisible = false;
-        progress_info_box.visible = false;
     };
 
     return this;
@@ -50,8 +88,12 @@ function PausingInProgressState() {
         toggle_button.enabled = true;
         toggle_button.text = "Pausing";
 
+        reset_button.enabled = false;
+        reset_button.visible = false;
+
         complete_label.toastVisible = false;
-        progress_info_box.visible = true;
+        hideInputElements();
+        showProgress();
     }
     return this;
 }
@@ -64,8 +106,12 @@ function ResumingInProgressState() {
         toggle_button.enabled = true;
         toggle_button.text = "Resuming";
 
+        reset_button.enabled = false;
+        reset_button.visible = false;
+
         complete_label.toastVisible = false;
-        progress_info_box.visible = true;
+        hideInputElements();
+        showProgress();
     }
     return this;
 }
@@ -78,8 +124,12 @@ function RunningState() {
         toggle_button.enabled = true;
         toggle_button.text = "Pause";
 
+        reset_button.enabled = false;
+        reset_button.visible = false;
+
         complete_label.toastVisible = false;
-        progress_info_box.visible = true;
+        hideInputElements();
+        showProgress();
     }
 
     return this;
@@ -93,8 +143,12 @@ function PausedState() {
         toggle_button.enabled = true;
         toggle_button.text = "Resume";
 
+        reset_button.enabled = true;
+        reset_button.visible = true;
+
         complete_label.toastVisible = false;
-        progress_info_box.visible = true;
+        hideInputElements();
+        showProgress();
     }
 
     return this;
@@ -102,14 +156,21 @@ function PausedState() {
 
 function FinishedState() {
     this.updateUI = function(stateData) {
-        download_button.enabled = true;
-        download_button.visible = true;
+        download_button.enabled = false;
+        download_button.visible = false;
         toggle_button.visible = false;
         toggle_button.enabled = false;
         toggle_button.text = "Pause";
 
+        reset_button.enabled = true;
+        reset_button.visible = true;
+
         complete_label.toastVisible = true;
-        progress_info_box.visible = true;
+        bar.visible = false;
+
+        time_left_id.visible = false;
+        errors_id.visible = false;
+        hideInputElements();
     }
 
     return this;

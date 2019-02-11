@@ -171,6 +171,10 @@ class AppState:
 
         images_left = self.download_configuration.number_of_images - \
                       self.progress_info.total_downloaded
+
+        if images_left <= 0:
+            return self._format_time(0)
+
         time_left = round(
             images_left / float(self._running_avg.units_per_second)
         )

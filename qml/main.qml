@@ -40,7 +40,16 @@ Window {
             labelText: "# of images per category"
         }
 
+        Text {
+            id: errors_id
+            width: parent.width
+            text: downloader.errors
+            font.pointSize: 16
+            color: "red"
+        }
+
         Row {
+            id: progress_info_id
             spacing: 15
             width: parent.width
             ProgressBar {
@@ -63,10 +72,27 @@ Window {
             Button {
                 id: toggle_button
                 text: "Pause"
-                width: 300;
+                width: 150;
                 onClicked: togglePause()
-                visible: false
             }
+
+            Button {
+                id: reset_button
+                text: "New download"
+                width: 150;
+                onClicked: abortDownload()
+            }
+        }
+
+        Toast {
+            id: complete_label
+            toastVisible: false
+        }
+
+        InfoText {
+            width: parent.width
+            id: time_left_id
+            label: "Time remaining:"
         }
 
         StatusBox {
@@ -88,10 +114,6 @@ Window {
             }
         }
 
-        Toast {
-            id: complete_label
-            toastVisible: false
-        }
     }
 
     Connections {
@@ -123,6 +145,10 @@ Window {
         } else {
             downloader.resume();
         }
+    }
+
+    function abortDownload() {
+        downloader.reset();
     }
 
     Component.onCompleted: {
