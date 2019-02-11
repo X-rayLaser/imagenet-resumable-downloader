@@ -26,6 +26,8 @@ class Config:
     def __init__(self,):
         self.app_data_folder = 'imagenet_data'
 
+        self.log_path = os.path.join(self.app_data_folder, 'failures.log')
+
         self.app_state_path = os.path.join(self.app_data_folder,
                                            'app_state.json')
 

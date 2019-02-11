@@ -116,6 +116,7 @@ class AppState:
 
     def to_json(self):
         download_conf = self.download_configuration
+
         d = dict(downloadPath=download_conf.download_destination,
                  numberOfImages=download_conf.number_of_images,
                  imagesPerCategory=download_conf.images_per_category,
@@ -191,10 +192,6 @@ class AppState:
             days = float(seconds) / (3600 * 24)
             return '{} days'.format(round(days))
 
-    def _parse_url(self, file_url):
-        p = urlparse(file_url)
-        return os.path.abspath(os.path.join(p.netloc, p.path))
-
     def _calculate_progress(self):
         num_of_images = self.download_configuration.number_of_images
         if num_of_images == 0:
@@ -228,6 +225,49 @@ class DownloadConfiguration:
             download_destination=conf_dict['download_destination'],
             batch_size=conf_dict['batch_size']
         )
+
+    @property
+    def is_valid(self):
+        if not self.download_destination.strip():
+            return False
+
+        path = self._parse_url(self.download_destination)
+
+        return os.path.exists(path) and self.number_of_images > 0 \
+                and self.images_per_category > 0
+
+    @property
+    def errors(self):
+        errors_list = []
+
+        path = self.download_destination.strip()
+
+        if not self.download_destination.strip():
+            errors_list.append(
+                'Destination folder for ImageNet was not specified'
+            )
+        else:
+            path = self._parse_url(self.download_destination)
+            if not os.path.exists(path):
+                errors_list.append(
+                    'Path "{}" does not exist'.format(path)
+                )
+
+        if self.number_of_images <= 0:
+            errors_list.append(
+                'Number of images must be greater than 0'
+            )
+
+        if self.images_per_category <= 0:
+            errors_list.append(
+                'Images per category must be greater than 0'
+            )
+
+        return errors_list
+
+    def _parse_url(self, file_uri):
+        p = urlparse(file_uri)
+        return os.path.abspath(os.path.join(p.netloc, p.path))
 
 
 class ProgressInfo:

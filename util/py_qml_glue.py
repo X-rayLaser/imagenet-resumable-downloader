@@ -20,7 +20,8 @@ import os
 from urllib.parse import urlparse
 
 from util.download_manager import DownloadManager
-from util.app_state import AppState
+from util.app_state import AppState, DownloadConfiguration
+from config import config
 
 
 class DummyStrategy(QtCore.QObject):
@@ -56,6 +57,7 @@ class StateManager(QtCore.QObject):
     def __init__(self):
         super().__init__()
         self._app_state = AppState()
+        self._log_path = config.log_path
 
         if self._app_state.progress_info.finished:
             self._state = 'finished'
@@ -63,6 +65,7 @@ class StateManager(QtCore.QObject):
             self._state = 'paused'
         else:
             self._state = 'initial'
+            self._reset_log()
 
         self._strategy = self.get_strategy()
         self._connect_signals()
@@ -72,6 +75,7 @@ class StateManager(QtCore.QObject):
             self.stateChanged.emit()
 
         def handle_failed(urls):
+            self._log_failures(self._log_path, urls)
             self.stateChanged.emit()
 
         def handle_paused():
@@ -90,6 +94,21 @@ class StateManager(QtCore.QObject):
         self._strategy.downloadPaused.connect(handle_paused)
         self._strategy.allDownloaded.connect(handle_allDownloaded)
 
+    def _reset_log(self):
+        if not os.path.exists(config.app_data_folder):
+            os.mkdir(config.app_data_folder)
+
+        if os.path.isfile(self._log_path):
+            os.remove(self._log_path)
+
+        with open(self._log_path, 'w') as f:
+            f.write('')
+
+    def _log_failures(self, log_path, urls):
+        with open(log_path, 'a') as f:
+            lines = '\n'.join(urls)
+            f.write(lines)
+
     def get_strategy(self):
         return DummyStrategy()
 
@@ -107,8 +126,11 @@ class StateManager(QtCore.QObject):
             return
 
         self._app_state.reset()
-        if self._valid_config(destination, number_of_images,
-                              images_per_category):
+
+        conf = DownloadConfiguration(number_of_images=number_of_images,
+                                     images_per_category=images_per_category,
+                                     download_destination=destination)
+        if conf.is_valid:
             self._state = 'ready'
             path = self._parse_url(destination)
 
@@ -117,42 +139,13 @@ class StateManager(QtCore.QObject):
                                      images_per_category=images_per_category)
         else:
             self._state = 'initial'
-            self._generate_error_messages(destination, number_of_images,
-                                          images_per_category)
+            self._generate_error_messages(conf)
 
         self.stateChanged.emit()
 
-    def _valid_config(self, destination, number_of_images,
-                      images_per_category):
-        if not destination.strip():
-            return False
-
-        path = self._parse_url(destination)
-        return os.path.exists(path) and number_of_images > 0 \
-                and images_per_category > 0
-
-    def _generate_error_messages(self, destination, number_of_images,
-                                 images_per_category):
-        if not destination.strip():
-            self._app_state.add_error(
-                'Destination folder for ImageNet was not specified'
-            )
-        else:
-            path = self._parse_url(destination)
-            if not os.path.exists(path):
-                self._app_state.add_error(
-                    'Path "{}" does not exist'.format(path)
-                )
-
-        if number_of_images <= 0:
-            self._app_state.add_error(
-                'Number of images must be greater than 0'
-            )
-
-        if images_per_category <= 0:
-            self._app_state.add_error(
-                'Images per category must be greater than 0'
-            )
+    def _generate_error_messages(self, download_conf):
+        for e in download_conf.errors:
+            self._app_state.add_error(e)
 
     def _parse_url(self, file_uri):
         p = urlparse(file_uri)
@@ -176,6 +169,7 @@ class StateManager(QtCore.QObject):
     def reset(self):
         if self._state not in ['running', 'pausing']:
             self._state = 'initial'
+            self._reset_log()
             self._app_state.reset()
             self._strategy.quit()
             self._strategy = self.get_strategy()
@@ -201,8 +195,6 @@ class Worker(StateManager):
     def get_strategy(self):
         return DownloadManager(self._app_state)
 
-
-# todo: add validation of arguments to Configuration class
 
 # todo: refactor backend once more
 

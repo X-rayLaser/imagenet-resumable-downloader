@@ -267,3 +267,38 @@ class AppStateTests(unittest.TestCase, metaclass=Meta):
         self.assertEqual(state_data['errors'], ['Some error'])
 
         self.assertAlmostEqual(state_data['progress'], 192.0 / 9309)
+
+
+class DownloadConfigurationTests(unittest.TestCase, metaclass=Meta):
+    def setUp(self):
+        self.temp_dir = 'temp'
+        if not os.path.exists(self.temp_dir):
+            os.mkdir(self.temp_dir)
+
+    def test_is_not_valid(self):
+        conf = DownloadConfiguration(number_of_images=-212,
+                                     images_per_category=33,
+                                     download_destination='')
+        self.assertFalse(conf.is_valid)
+
+        self.assertEqual(conf.errors, [
+            'Destination folder for ImageNet was not specified',
+            'Number of images must be greater than 0'
+        ])
+
+        conf = DownloadConfiguration(number_of_images=1,
+                                     images_per_category=0,
+                                     download_destination='faef')
+        self.assertFalse(conf.is_valid)
+
+        self.assertEqual(conf.errors, [
+            'Path "{}" does not exist'.format(os.path.abspath('faef')),
+            'Images per category must be greater than 0'
+        ])
+
+    def test_is_valid(self):
+        conf = DownloadConfiguration(number_of_images=1,
+                                     images_per_category=1,
+                                     download_destination='temp')
+        self.assertTrue(conf.is_valid)
+        self.assertEqual(conf.errors, [])

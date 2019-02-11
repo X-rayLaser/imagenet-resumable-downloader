@@ -171,6 +171,7 @@ function FinishedState() {
         time_left_id.visible = false;
         errors_id.visible = false;
         hideInputElements();
+        progress_info_box.visible = true;
     }
 
     return this;

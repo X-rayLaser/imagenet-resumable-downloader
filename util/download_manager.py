@@ -19,7 +19,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, QMutex, QWaitCondition
 
 from image_net.stateful_downloader import StatefulDownloader
-from util.app_state import DownloadConfiguration, AppState
+from util.app_state import DownloadConfiguration
 
 
 class DownloadManager(QThread):
@@ -102,8 +102,3 @@ class DownloadManager(QThread):
         self.mutex.unlock()
         self.wait_condition.wakeAll()
         self.downloadResumed.emit()
-
-    def _log_failures(self, log_path, urls):
-        with open(log_path, 'a') as f:
-            lines = '\n'.join(urls)
-            f.write(lines)

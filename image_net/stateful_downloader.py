@@ -15,13 +15,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import json
-import os
 
 from image_net import iterators
-from config import config
 from image_net.batch_download import BatchDownload
-from util.app_state import DownloadConfiguration, Result, ProgressInfo, InternalState, AppState
+from util.app_state import DownloadConfiguration, Result
 
 
 class StatefulDownloader:
