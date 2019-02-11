@@ -17,12 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from PyQt5 import QtCore
 import os
-import json
 from urllib.parse import urlparse
 
 from util.download_manager import DownloadManager
-from util.average import RunningAverage
-from config import config
 from util.app_state import AppState
 
 
@@ -47,6 +44,9 @@ class DummyStrategy(QtCore.QObject):
 
     def configure(self, destination, number_of_examples,
                   images_per_category, batch_size=100):
+        pass
+
+    def quit(self):
         pass
 
 
@@ -110,17 +110,17 @@ class StateManager(QtCore.QObject):
         if self._valid_config(destination, number_of_images,
                               images_per_category):
             self._state = 'ready'
+            path = self._parse_url(destination)
+
+            self._strategy.configure(destination=path,
+                                     number_of_examples=number_of_images,
+                                     images_per_category=images_per_category)
         else:
             self._state = 'initial'
             self._generate_error_messages(destination, number_of_images,
                                           images_per_category)
+
         self.stateChanged.emit()
-
-        path = self._parse_url(destination)
-
-        self._strategy.configure(destination=path,
-                                 number_of_examples=number_of_images,
-                                 images_per_category=images_per_category)
 
     def _valid_config(self, destination, number_of_images,
                       images_per_category):
